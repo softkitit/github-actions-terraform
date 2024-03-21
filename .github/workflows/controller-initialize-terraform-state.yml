@@ -22,8 +22,7 @@ name: |-
         awsAccessKeyId: ${{ inputs.awsAccessKeyId }}
         awsSecretAccessKey: ${{ inputs.awsSecretAccessKey }}
         awsSessionToken: ${{ inputs.awsSessionToken }}
-      secrets:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      secrets: inherit
   
     on:
       workflow_dispatch:
@@ -59,7 +58,7 @@ env:
   MOCK_BACKEND_FILE_NAME: ${{ inputs.mockBackendFileName || 'backend.tf' }}
   BACKEND_FILE_NAME: ${{ inputs.backendFolderPath || 'backends' }}/${{ inputs.environment }}.s3.tfbackend
   BRANCH_NAME: terraform-state/${{inputs.environment}}-${{ github.run_id }}-${{ github.run_attempt }}
-  TF_STATE_FILE_NAME: ${{inputs.environment}}-${{inputs.tfStateFileName || 'terraform.tfstate'}}
+  TF_STATE_FILE_NAME: ${{ inputs.environment }}-${{ inputs.tfStateFileName || 'terraform.tfstate' }}
   DYNAMODB_TABLE_NAME: ${{ inputs.dynamoDbTableName || format('{0}-{1}-{2}', inputs.environment, inputs.organization, inputs.repository) }}
   S3_BUCKET_NAME: ${{ inputs.s3BucketName || format('{0}-{1}-{2}', inputs.environment, inputs.organization, inputs.repository) }}
 
@@ -157,73 +156,51 @@ jobs:
           exit 1
 
 on:
-  workflow_dispatch:
+  workflow_call:
     inputs:
       awsAccessKeyId:
         description: "AWS Access Key ID"
+        type: string
         required: true
       awsSecretAccessKey:
         description: "AWS Secret Access Key"
+        type: string
         required: true
       awsSessionToken:
         description: "AWS Session Token"
+        type: string
         required: true
       awsRegion:
         description: "AWS Region"
-        type: choice
+        type: string
         required: true
-        options:
-          - af-south-1
-          - ap-east-1
-          - ap-northeast-1
-          - ap-northeast-2
-          - ap-northeast-3
-          - ap-south-1
-          - ap-south-2
-          - ap-southeast-1
-          - ap-southeast-2
-          - ap-southeast-3
-          - ap-southeast-4
-          - ca-central-1
-          - ca-west-1
-          - eu-central-1
-          - eu-central-2
-          - eu-north-1
-          - eu-south-1
-          - eu-south-2
-          - eu-west-1
-          - eu-west-2
-          - eu-west-3
-          - il-central-1
-          - me-central-1
-          - me-south-1
-          - sa-east-1
-          - us-east-1
-          - us-east-2
-          - us-gov-east-1
-          - us-gov-west-1
-          - us-west-1
-          - us-west-2
       environment:
         description: "Environment name (master, prod, dev, security, etc...)"
+        type: string
         required: true
       tfStateFileName:
         description: "Terraform file state name on a remote"
+        type: string
         required: false
       dynamoDbTableName:
         description: "DynamoDB table name"
+        type: string
         required: false
       s3BucketName:
         description: "S3 Bucket name"
+        type: string
         required: false
       varsFolderPath:
         description: "Vars folder path for generated tfvars file"
+        type: string
         required: false
       backendFolderPath:
         description: "Backends folder path for generated tfbackend file"
+        type: string
         required: false
       mockBackendFileName:
         description: "Mock backend file name, required for for external backend file name"
+        type: string
         required: false
       organization:
         description: "Repository owner organization (ex. acme for repo acme/example)"
