@@ -1,0 +1,70 @@
+name: Apply Terraform Changes
+on:
+  pull_request:
+    branches:
+      - main
+    types: [closed]
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: "Environment to apply changes to"
+        required: true
+        type: choice
+        options:
+          - dev
+          - prod
+
+env:
+  ENVIRONMENT: ${{ inputs.environment || 'dev' }}
+
+concurrency:
+  group: ${{ inputs.environment || 'dev' }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  pull-requests: write
+  id-token: write
+
+
+jobs:
+  plan:
+    runs-on: ubuntu-latest
+    name: Apply Terraform plan
+    if: github.event.pull_request.merged == true || github.event_name == 'workflow_dispatch'
+    env:
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+      - name: Uppercase environment name
+        run: echo "ENVIRONMENT_UPPERCASE=$(echo ${{ env.ENVIRONMENT }} | tr '[:lower:]' '[:upper:]')" >> $GITHUB_ENV
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        env:
+          AWS_ACCOUNT_ID: ${{ vars[format('{0}_AWS_ACCOUNT_ID', env.ENVIRONMENT_UPPERCASE )] }}
+          AWS_ACCOUNT_REGION: ${{ vars[format('{0}_AWS_ACCOUNT_REGION', env.ENVIRONMENT_UPPERCASE )] }}
+        with:
+          aws-region: ${{ env.AWS_ACCOUNT_REGION }}
+          role-to-assume: arn:aws:iam::${{ env.AWS_ACCOUNT_ID }}:role/github
+
+      - name: terraform apply
+        uses: dflook/terraform-apply@v1
+        continue-on-error: true
+        id: first_try
+
+        with:
+          var_file: |
+            vars/${{ env.ENVIRONMENT }}.tfvars
+          backend_config_file: backends/${{ env.ENVIRONMENT }}.s3.tfbackend
+          auto_approve: true
+
+      - name: Retry failed apply
+        uses: dflook/terraform-apply@v1
+        if: ${{ steps.first_try.outputs.failure-reason == 'apply-failed' }}
+        with:
+          var_file: |
+            vars/${{ env.ENVIRONMENT }}.tfvars
+          backend_config_file: backends/${{ env.ENVIRONMENT }}.s3.tfbackend
+          auto_approve: true

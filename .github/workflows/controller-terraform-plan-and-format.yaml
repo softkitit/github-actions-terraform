@@ -1,0 +1,63 @@
+name: Terraform plan and format
+
+permissions:
+  contents: read
+  pull-requests: write
+  id-token: write
+
+# When a PR is opened to main
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: "Environment to plan changes on"
+        required: true
+        type: choice
+        options:
+          - dev
+          - prod
+
+env:
+  ENVIRONMENT: ${{ inputs.environment || 'dev' }}
+
+concurrency:
+  group: ${{ inputs.environment || 'dev' }}
+  cancel-in-progress: false
+
+jobs:
+  terraform:
+    env:
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+    if: ${{ github.event_name != 'labeled' || github.event.label.name == 'force-plan' }}
+
+    name: Terraform
+    runs-on: ubuntu-latest
+    steps:
+      - name: Uppercase environment name
+        run: echo "ENVIRONMENT_UPPERCASE=$(echo ${{ env.ENVIRONMENT }} | tr '[:lower:]' '[:upper:]')" >> $GITHUB_ENV
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        env:
+          AWS_ACCOUNT_ID: ${{ vars[format('{0}_AWS_ACCOUNT_ID', env.ENVIRONMENT_UPPERCASE )] }}
+          AWS_ACCOUNT_REGION: ${{ vars[format('{0}_AWS_ACCOUNT_REGION', env.ENVIRONMENT_UPPERCASE )] }}
+        with:
+          aws-region: ${{ env.AWS_ACCOUNT_REGION }}
+          role-to-assume: arn:aws:iam::${{ env.AWS_ACCOUNT_ID }}:role/github
+
+      - uses: actions/checkout@v4
+      - uses: hashicorp/setup-terraform@v3
+
+      - name: terraform validate
+        uses: dflook/terraform-validate@v1
+
+      - name: terraform fmt
+        uses: dflook/terraform-fmt-check@v1
+
+      - name: terraform plan
+        uses: dflook/terraform-plan@v1
+        with:
+          var_file: |
+            vars/${{ env.ENVIRONMENT }}.tfvars
+          backend_config_file: backends/${{ env.ENVIRONMENT }}.s3.tfbackend

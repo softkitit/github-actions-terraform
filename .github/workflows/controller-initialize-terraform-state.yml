@@ -1,0 +1,235 @@
+
+name: |-
+  Controller - Initialize terraform state
+  
+  It creates a tfvars properties file to a given inputs, validate terraform,
+  and create a pull request to apply these changes, and generate state and lock in dynamodb
+  
+  ### Usage 
+  
+  ```yaml
+    name: Deploy
+    on:
+      push:
+        branches: [ main ]
+    jobs:
+    init_state:
+      uses: softkitit/github-actions-terraform/.github/workflows/controller-initialize-terraform-state.yml@main
+      with:
+        repository: ${{ github.event.repository.name }}
+        organization: ${{ github.event.repository.owner.login }}
+        awsRegion: eu-central-1
+        awsAccessKeyId: ${{ inputs.awsAccessKeyId }}
+        awsSecretAccessKey: ${{ inputs.awsSecretAccessKey }}
+        awsSessionToken: ${{ inputs.awsSessionToken }}
+      secrets:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+  
+    on:
+      workflow_dispatch:
+        inputs:
+          awsAccessKeyId:
+            description: "AWS Access Key ID"
+            required: true
+          awsSecretAccessKey:
+            description: "AWS Secret Access Key"
+            required: true
+          awsSessionToken:
+            description: "AWS Session Token"
+            required: true
+          environment:
+            description: "Environment name (master, prod, dev, security, etc...)"
+            required: true
+  ```
+
+permissions:
+  # Give the default GITHUB_TOKEN write permission to commit and push the
+  # added or changed files to the repository.
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: single-group
+  cancel-in-progress: false
+
+env:
+  VARS_FOLDER_PATH: ${{ inputs.varsFolderPath || 'vars' }}
+  BACKEND_FOLDER_PATH: ${{ inputs.backendFolderPath || 'backends' }}
+  VARS_FILE_NAME: ${{ inputs.varsFolderPath || 'vars' }}/${{inputs.environment}}.tfvars
+  MOCK_BACKEND_FILE_NAME: ${{ inputs.mockBackendFileName || 'backend.tf' }}
+  BACKEND_FILE_NAME: ${{ inputs.backendFolderPath || 'backends' }}/${{ inputs.environment }}.s3.tfbackend
+  BRANCH_NAME: terraform-state/${{inputs.environment}}-${{ github.run_id }}-${{ github.run_attempt }}
+  TF_STATE_FILE_NAME: ${{inputs.environment}}-${{inputs.tfStateFileName || 'terraform.tfstate'}}
+  DYNAMODB_TABLE_NAME: ${{ inputs.dynamoDbTableName || format('{0}-{1}-{2}', inputs.environment, inputs.organization, inputs.repository) }}
+  S3_BUCKET_NAME: ${{ inputs.s3BucketName || format('{0}-{1}-{2}', inputs.environment, inputs.organization, inputs.repository) }}
+
+jobs:
+  init_state:
+    name: Perform terraform state initialization
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout current branch
+        uses: actions/checkout@v4
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-region: ${{ inputs.awsRegion }}
+          aws-access-key-id: ${{ inputs.awsAccessKeyId }}
+          aws-secret-access-key: ${{ inputs.awsSecretAccessKey }}
+          aws-session-token: ${{ inputs.awsSessionToken }}
+
+      - name: Setup terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "~1.7.0"
+          terraform_wrapper: false
+
+      - name: Remove backend mock file, it's not needed for initialization stage and must be removed
+        run: rm $MOCK_BACKEND_FILE_NAME || 0
+
+      - name: Terraform init
+        run: terraform init
+
+      - name: Generate vars file
+        run: | 
+          echo 'environment = "${{inputs.environment}}"' > $VARS_FILE_NAME 
+          echo 'aws_region = "${{inputs.awsRegion}}"' >> $VARS_FILE_NAME 
+          echo 'repository_name = "${{inputs.repository}}"' >> $VARS_FILE_NAME 
+          echo 'github_org_name = "${{inputs.organization}}"' >> $VARS_FILE_NAME 
+          echo "tf_state_file_name = \"${TF_STATE_FILE_NAME}\"" >> $VARS_FILE_NAME 
+          echo "dynamo_db_table_name = \"${DYNAMODB_TABLE_NAME}\"" >> $VARS_FILE_NAME
+          echo "s3_bucket_name = \"${S3_BUCKET_NAME}\"" >> $VARS_FILE_NAME
+          terraform fmt $VARS_FILE_NAME
+
+      - name: Terraform Plan
+        id: plan
+        run: terraform plan -var-file="$VARS_FILE_NAME" -no-color -target="module.terraform_state_backend" -target="module.oidc_github"
+
+      - name: Terraform Apply
+        id: apply
+        run: terraform apply -auto-approve -var-file="$VARS_FILE_NAME" -no-color -target="module.terraform_state_backend" -target="module.oidc_github"
+        continue-on-error: true
+
+      - name: Generate backend HCL file
+        run: |
+          echo 'region         = "${{inputs.awsRegion}}"' > $BACKEND_FILE_NAME
+          echo "bucket         = \"${S3_BUCKET_NAME}\"" >> $BACKEND_FILE_NAME
+          echo "key            = \"${TF_STATE_FILE_NAME}\"" >> $BACKEND_FILE_NAME
+          echo 'profile        = ""' >> $BACKEND_FILE_NAME
+          echo 'encrypt        = "true"' >> $BACKEND_FILE_NAME
+          echo "dynamodb_table = \"${DYNAMODB_TABLE_NAME}\"" >> $BACKEND_FILE_NAME
+
+      - uses: stefanzweifel/git-auto-commit-action@v5
+        with:
+          commit_message: Generated state for env - ${{inputs.environment}}
+          branch: ${{ env.BRANCH_NAME }}
+          commit_options: '--no-verify --signoff'
+          file_pattern: "${{ env.VARS_FOLDER_PATH }} ${{env.BACKEND_FOLDER_PATH}}/*.tfvars backends/*tfbackend"
+          commit_user_name: ${{ github.actor }}
+          commit_user_email: ${{ github.actor_id }}+${{ github.actor }}@users.noreply.github.com
+          status_options: '--untracked-files=no'
+          skip_dirty_check: true
+          skip_fetch: true
+          skip_checkout: true
+          disable_globbing: true
+          create_branch: true
+
+      - name: Copy local state to the remote
+        id: force-copy
+#        moving backend file back to support copy
+        run: |
+          git reset --hard 
+          terraform init -force-copy -var-file="$VARS_FILE_NAME" -backend-config="${BACKEND_FILE_NAME}" -no-color
+
+      - name: Create Pull Request
+        run: gh pr create -B main -H $BRANCH_NAME --title 'Merge generated credentials for ${{inputs.environment}} environment' --body 'Created by Github action, for environment - ${{inputs.environment}}'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Check needed destroy
+        id: destroy
+        if: failure()
+        run: |
+          rm backend.tf || 0
+          terraform init -force-copy
+          terraform apply -destroy -auto-approve -var-file="$VARS_FILE_NAME" -no-color
+          exit 1
+
+on:
+  workflow_dispatch:
+    inputs:
+      awsAccessKeyId:
+        description: "AWS Access Key ID"
+        required: true
+      awsSecretAccessKey:
+        description: "AWS Secret Access Key"
+        required: true
+      awsSessionToken:
+        description: "AWS Session Token"
+        required: true
+      awsRegion:
+        description: "AWS Region"
+        type: choice
+        required: true
+        options:
+          - af-south-1
+          - ap-east-1
+          - ap-northeast-1
+          - ap-northeast-2
+          - ap-northeast-3
+          - ap-south-1
+          - ap-south-2
+          - ap-southeast-1
+          - ap-southeast-2
+          - ap-southeast-3
+          - ap-southeast-4
+          - ca-central-1
+          - ca-west-1
+          - eu-central-1
+          - eu-central-2
+          - eu-north-1
+          - eu-south-1
+          - eu-south-2
+          - eu-west-1
+          - eu-west-2
+          - eu-west-3
+          - il-central-1
+          - me-central-1
+          - me-south-1
+          - sa-east-1
+          - us-east-1
+          - us-east-2
+          - us-gov-east-1
+          - us-gov-west-1
+          - us-west-1
+          - us-west-2
+      environment:
+        description: "Environment name (master, prod, dev, security, etc...)"
+        required: true
+      tfStateFileName:
+        description: "Terraform file state name on a remote"
+        required: false
+      dynamoDbTableName:
+        description: "DynamoDB table name"
+        required: false
+      s3BucketName:
+        description: "S3 Bucket name"
+        required: false
+      varsFolderPath:
+        description: "Vars folder path for generated tfvars file"
+        required: false
+      backendFolderPath:
+        description: "Backends folder path for generated tfbackend file"
+        required: false
+      mockBackendFileName:
+        description: "Mock backend file name, required for for external backend file name"
+        required: false
+      organization:
+        description: "Repository owner organization (ex. acme for repo acme/example)"
+        required: true
+        type: string
+      repository:
+        description: "Repository name (ex. example for repo acme/example)"
+        required: true
+        type: string
