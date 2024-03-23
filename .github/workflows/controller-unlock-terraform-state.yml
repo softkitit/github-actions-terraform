@@ -10,6 +10,7 @@ name: |-
     
     permissions:
       id-token: write
+      contents: read
     
     jobs:
       unlock_state:
@@ -36,6 +37,7 @@ name: |-
 
 permissions:
   id-token: write
+  contents: read
 
 concurrency:
   group: ${{ inputs.lockId }}
