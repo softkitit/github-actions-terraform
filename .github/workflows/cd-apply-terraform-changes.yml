@@ -1,24 +1,43 @@
-name: Apply Terraform Changes
-on:
-  pull_request:
-    branches:
-      - main
-    types: [closed]
-  workflow_dispatch:
-    inputs:
-      environment:
-        description: "Environment to apply changes to"
-        required: true
-        type: choice
-        options:
-          - dev
-          - prod
+name: |-
+  CD - Apply terraform changes
+  
+  It applies the terraform changes to the environment
+    
+  ### Usage 
+  
+  ```yaml
+    name: Apply Terraform Changes
+    on:
+      pull_request:
+        branches:
+          - main
+        types: [closed]
+      workflow_dispatch:
+      inputs:
+        environment:
+          description: "Environment to apply changes to"
+          required: true
+          type: choice
+          options:
+            - dev
+            - prod
+
+    jobs:
+      apply_changes:
+        if: github.event.pull_request.merged == true || github.event_name == 'workflow_dispatch'
+        uses: softkitit/github-actions-terraform/.github/workflows/cd-apply-terraform-changes.yml@main
+        with:
+          environment: ${{ inputs.environment || 'dev' }}
+        secrets: inherit
+  ```
 
 env:
-  ENVIRONMENT: ${{ inputs.environment || 'dev' }}
+  ENVIRONMENT: ${{ inputs.environment }}
+  VARS_FOLDER_PATH: ${{ inputs.varsFolderPath || 'vars' }}
+  BACKEND_FOLDER_PATH: ${{ inputs.backendFolderPath || 'backends' }}
 
 concurrency:
-  group: ${{ inputs.environment || 'dev' }}
+  group: ${{ inputs.environment }}
   cancel-in-progress: false
 
 permissions:
@@ -30,13 +49,13 @@ permissions:
 jobs:
   plan:
     runs-on: ubuntu-latest
-    name: Apply Terraform plan
-    if: github.event.pull_request.merged == true || github.event_name == 'workflow_dispatch'
+    name: Apply Terraform changes
     env:
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     steps:
       - name: Checkout
         uses: actions/checkout@v3
+
       - name: Uppercase environment name
         run: echo "ENVIRONMENT_UPPERCASE=$(echo ${{ env.ENVIRONMENT }} | tr '[:lower:]' '[:upper:]')" >> $GITHUB_ENV
 
@@ -56,8 +75,8 @@ jobs:
 
         with:
           var_file: |
-            vars/${{ env.ENVIRONMENT }}.tfvars
-          backend_config_file: backends/${{ env.ENVIRONMENT }}.s3.tfbackend
+            ${{ env.VARS_FOLDER_PATH }}/${{ env.ENVIRONMENT }}.tfvars
+          backend_config_file: ${{ env.BACKEND_FOLDER_PATH }}/${{ env.ENVIRONMENT }}.s3.tfbackend
           auto_approve: true
 
       - name: Retry failed apply
@@ -65,6 +84,24 @@ jobs:
         if: ${{ steps.first_try.outputs.failure-reason == 'apply-failed' }}
         with:
           var_file: |
-            vars/${{ env.ENVIRONMENT }}.tfvars
-          backend_config_file: backends/${{ env.ENVIRONMENT }}.s3.tfbackend
+            ${{ env.VARS_FOLDER_PATH }}/${{ env.ENVIRONMENT }}.tfvars
+          backend_config_file: ${{ env.BACKEND_FOLDER_PATH }}/${{ env.ENVIRONMENT }}.s3.tfbackend
           auto_approve: true
+
+on:
+  workflow_call:
+    inputs:
+      environment:
+        description: "Environment name (master, prod, dev, security, etc...)"
+        type: string
+        required: true
+
+      varsFolderPath:
+        description: "Vars folder path for generated tfvars file"
+        type: string
+        required: false
+
+      backendFolderPath:
+        description: "Backends folder path for generated tfbackend file"
+        type: string
+        required: false
