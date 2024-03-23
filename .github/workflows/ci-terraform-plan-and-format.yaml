@@ -30,7 +30,7 @@ name: |-
               - prod
 
     jobs:
-      apply_changes:
+      plan_and_format:
         uses: softkitit/github-actions-terraform/.github/workflows/ci-terraform-plan-and-format.yaml@main
         with:
           environment: $\{\{ inputs.environment || 'dev' \}\}
