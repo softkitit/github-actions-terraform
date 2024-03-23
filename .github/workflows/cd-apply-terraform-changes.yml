@@ -20,14 +20,14 @@ name: |-
         types: [closed]
   
       workflow_dispatch:
-      inputs:
-        environment:
-          description: "Environment to apply changes to"
-          required: true
-          type: choice
-          options:
-            - dev
-            - prod
+        inputs:
+          environment:
+            description: "Environment to apply changes to"
+            required: true
+            type: choice
+            options:
+              - dev
+              - prod
 
     jobs:
       apply_changes:
