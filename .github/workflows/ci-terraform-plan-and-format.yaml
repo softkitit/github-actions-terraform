@@ -33,7 +33,7 @@ name: |-
       apply_changes:
         uses: softkitit/github-actions-terraform/.github/workflows/ci-terraform-plan-and-format.yaml@main
         with:
-          environment: ${{ inputs.environment || 'dev' }}
+          environment: $\{\{ inputs.environment || 'dev' \}\}
         secrets: inherit
   ```
 
