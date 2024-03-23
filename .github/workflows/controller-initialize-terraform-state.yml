@@ -1,4 +1,3 @@
-
 name: |-
   Controller - Initialize terraform state
   
@@ -16,12 +15,12 @@ name: |-
     init_state:
       uses: softkitit/github-actions-terraform/.github/workflows/controller-initialize-terraform-state.yml@main
       with:
-        repository: ${{ github.event.repository.name }}
-        organization: ${{ github.event.repository.owner.login }}
+        repository: $\{\{ github.event.repository.name \}\}
+        organization: $\{\{ github.event.repository.owner.login \}\}
         awsRegion: eu-central-1
-        awsAccessKeyId: ${{ inputs.awsAccessKeyId }}
-        awsSecretAccessKey: ${{ inputs.awsSecretAccessKey }}
-        awsSessionToken: ${{ inputs.awsSessionToken }}
+        awsAccessKeyId: $\{\{ inputs.awsAccessKeyId \}\}
+        awsSecretAccessKey: $\{\{ inputs.awsSecretAccessKey \}\}
+        awsSessionToken: $\{\{ inputs.awsSessionToken \}\}
       secrets: inherit
   
     on:
