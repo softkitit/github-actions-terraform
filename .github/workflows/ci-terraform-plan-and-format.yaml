@@ -1,42 +1,46 @@
 name: |-
-  CD - Apply terraform changes
+  CI - Terraform Plan, Validate and Format
   
-  It applies the terraform changes to the environment
-    
+  It runs terraform plan, validate and format and updating a pull request with the changes
+  
   ### Usage 
   
   ```yaml
-    name: Apply Terraform Changes
+    name: Terraform plan and format
   
     permissions:
       contents: read
       pull-requests: write
       id-token: write
-
+  
     on:
       pull_request:
         branches:
           - main
-        types: [closed]
+        types: [ opened, reopened, synchronize, labeled ]
   
       workflow_dispatch:
-      inputs:
-        environment:
-          description: "Environment to apply changes to"
-          required: true
-          type: choice
-          options:
-            - dev
-            - prod
+        inputs:
+          environment:
+            description: "Environment to apply changes to"
+            required: true
+            type: choice
+            options:
+              - dev
+              - prod
 
     jobs:
       apply_changes:
-        if: github.event.pull_request.merged == true || github.event_name == 'workflow_dispatch'
-        uses: softkitit/github-actions-terraform/.github/workflows/cd-apply-terraform-changes.yml@main
+        uses: softkitit/github-actions-terraform/.github/workflows/ci-terraform-plan-and-format.yaml@main
         with:
           environment: ${{ inputs.environment || 'dev' }}
         secrets: inherit
   ```
+
+permissions:
+  contents: read
+  pull-requests: write
+  id-token: write
 
 env:
   ENVIRONMENT: ${{ inputs.environment }}
@@ -47,22 +51,14 @@ concurrency:
   group: ${{ inputs.environment }}
   cancel-in-progress: false
 
-permissions:
-  contents: read
-  pull-requests: write
-  id-token: write
-
-
 jobs:
-  plan:
-    runs-on: ubuntu-latest
-    name: Apply Terraform changes
+  terraform:
     env:
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v3
 
+    name: Terraform
+    runs-on: ubuntu-latest
+    steps:
       - name: Uppercase environment name
         run: echo "ENVIRONMENT_UPPERCASE=$(echo ${{ env.ENVIRONMENT }} | tr '[:lower:]' '[:upper:]')" >> $GITHUB_ENV
 
@@ -75,25 +71,21 @@ jobs:
           aws-region: ${{ env.AWS_ACCOUNT_REGION }}
           role-to-assume: arn:aws:iam::${{ env.AWS_ACCOUNT_ID }}:role/github
 
-      - name: terraform apply
-        uses: dflook/terraform-apply@v1
-        continue-on-error: true
-        id: first_try
+      - uses: actions/checkout@v4
+      - uses: hashicorp/setup-terraform@v3
 
+      - name: terraform validate
+        uses: dflook/terraform-validate@v1
+
+      - name: terraform fmt
+        uses: dflook/terraform-fmt-check@v1
+
+      - name: terraform plan
+        uses: dflook/terraform-plan@v1
         with:
           var_file: |
             ${{ env.VARS_FOLDER_PATH }}/${{ env.ENVIRONMENT }}.tfvars
           backend_config_file: ${{ env.BACKEND_FOLDER_PATH }}/${{ env.ENVIRONMENT }}.s3.tfbackend
-          auto_approve: true
-
-      - name: Retry failed apply
-        uses: dflook/terraform-apply@v1
-        if: ${{ steps.first_try.outputs.failure-reason == 'apply-failed' }}
-        with:
-          var_file: |
-            ${{ env.VARS_FOLDER_PATH }}/${{ env.ENVIRONMENT }}.tfvars
-          backend_config_file: ${{ env.BACKEND_FOLDER_PATH }}/${{ env.ENVIRONMENT }}.s3.tfbackend
-          auto_approve: true
 
 on:
   workflow_call:

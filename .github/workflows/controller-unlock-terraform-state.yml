@@ -1,27 +1,50 @@
-name: "Unlock state"
-on:
-  workflow_dispatch:
-    inputs:
-      lock_id:
-        description: "Lock ID to be unlocked"
-        required: true
-      environment:
-        description: "Environment to apply changes to"
-        required: true
-        type: choice
-        options:
-          - dev
-          - prod
+name: |-
+  Controller - Unlock Terraform State
+  
+  It helps to unlock the remote terraform state by lock id
+  
+  ### Usage 
+  
+  ```yaml
+    name: Unlock state
+    
+    permissions:
+      id-token: write
+    
+    jobs:
+      unlock_state:
+        uses: softkitit/github-actions-terraform/.github/workflows/controller-unlock-terraform-state.yml@main
+        with:
+          lockId: $\{\{ inputs.lockId \}\}
+          environment: $\{\{ inputs.environment \}\}
+        secrets: inherit
+  
+    on:
+      workflow_dispatch:
+        inputs:
+          lockId:
+            description: "Lock id"
+            required: true
+          environment:
+            description: "Environment to apply changes to"
+            required: true
+            type: choice
+            options:
+              - dev
+              - prod
+  ```
 
 permissions:
-  contents: read
-  pull-requests: write
   id-token: write
 
-
 concurrency:
-  group: ${{ inputs.environment }}
-  cancel-in-progress: false
+  group: ${{ inputs.lockId }}
+  cancel-in-progress: true
+
+env:
+  ENVIRONMENT: ${{ inputs.environment }}
+  VARS_FOLDER_PATH: ${{ inputs.varsFolderPath || 'vars' }}
+  BACKEND_FOLDER_PATH: ${{ inputs.backendFolderPath || 'backends' }}
 
 jobs:
   unlock:
@@ -46,8 +69,31 @@ jobs:
       - name: Terraform Unlock
         uses: dflook/terraform-unlock-state@v1
         with:
-          lock_id: ${{ github.event.inputs.lock_id }}
+          lock_id: ${{ inputs.lockId }}
           var_file: |
-            vars/${{ env.ENVIRONMENT }}.tfvars
-          backend_config_file: backends/${{ env.ENVIRONMENT }}.s3.tfbackend
+            ${{ env.VARS_FOLDER_PATH }}/${{ env.ENVIRONMENT }}.tfvars
+          backend_config_file: ${{ env.BACKEND_FOLDER_PATH }}/${{ env.ENVIRONMENT }}.s3.tfbackend
           auto_approve: true
+
+on:
+  workflow_call:
+    inputs:
+      environment:
+        description: "Environment name (master, prod, dev, security, etc...)"
+        type: string
+        required: true
+
+      varsFolderPath:
+        description: "Vars folder path for generated tfvars file"
+        type: string
+        required: false
+
+      backendFolderPath:
+        description: "Backends folder path for generated tfbackend file"
+        type: string
+        required: false
+
+      lockId:
+        description: "Lock ID to be unlocked"
+        type: string
+        required: true
