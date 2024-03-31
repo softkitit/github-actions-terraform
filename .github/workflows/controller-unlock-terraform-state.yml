@@ -18,6 +18,7 @@ name: |-
         with:
           lockId: $\{\{ inputs.lockId \}\}
           environment: $\{\{ inputs.environment \}\}
+          terraformFolder: '.'
         secrets: inherit
   
     on:
@@ -52,6 +53,9 @@ jobs:
   unlock:
     name: Unlock
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ${{ inputs.terraformFolder || '.' }}
     steps:
       - name: Checkout current branch
         uses: actions/checkout@v3
@@ -84,6 +88,11 @@ on:
         description: "Environment name (master, prod, dev, security, etc...)"
         type: string
         required: true
+
+      terraformFolder:
+        description: "Root folder path for terraform files"
+        type: string
+        required: false
 
       varsFolderPath:
         description: "Vars folder path for generated tfvars file"

@@ -34,6 +34,7 @@ name: |-
         uses: softkitit/github-actions-terraform/.github/workflows/ci-terraform-plan-and-format.yaml@main
         with:
           environment: $\{\{ inputs.environment || 'dev' \}\}
+          terraformFolder: '.'
         secrets: inherit
   ```
 
@@ -55,7 +56,9 @@ jobs:
   terraform:
     env:
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
+    defaults:
+      run:
+        working-directory: ${{ inputs.terraformFolder || '.' }}
     name: Terraform
     runs-on: ubuntu-latest
     steps:
@@ -72,7 +75,6 @@ jobs:
           role-to-assume: arn:aws:iam::${{ env.AWS_ACCOUNT_ID }}:role/github
 
       - uses: actions/checkout@v4
-      - uses: hashicorp/setup-terraform@v3
 
       - name: terraform validate
         uses: dflook/terraform-validate@v1
@@ -94,6 +96,11 @@ on:
         description: "Environment name (master, prod, dev, security, etc...)"
         type: string
         required: true
+
+      terraformFolder:
+        description: "Root folder path for terraform files"
+        type: string
+        required: false
 
       varsFolderPath:
         description: "Vars folder path for generated tfvars file"
