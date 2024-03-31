@@ -127,7 +127,7 @@ jobs:
           commit_message: Generated state for env - ${{inputs.environment}}
           branch: ${{ env.BRANCH_NAME }}
           commit_options: '--no-verify --signoff'
-          file_pattern: "*${VARS_FILE_NAME} *${BACKEND_FILE_NAME}"
+          file_pattern: "*${{ env.BACKEND_FILE_NAME }} *${{ env.VARS_FILE_NAME }}"
           commit_user_name: ${{ github.actor }}
           commit_user_email: ${{ github.actor_id }}+${{ github.actor }}@users.noreply.github.com
           status_options: '--untracked-files=no'
