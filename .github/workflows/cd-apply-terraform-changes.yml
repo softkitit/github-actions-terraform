@@ -84,12 +84,11 @@ jobs:
         uses: dflook/terraform-apply@v1
         continue-on-error: true
         id: first_try
-
         with:
           path: ${{ env.TERRAFORM_ROOT }}
           var_file: |
-            ${{ env.VARS_FOLDER_PATH }}/${{ env.ENVIRONMENT }}.tfvars
-          backend_config_file: ${{ env.BACKEND_FOLDER_PATH }}/${{ env.ENVIRONMENT }}.s3.tfbackend
+            ${{ env.TERRAFORM_ROOT }}${{ env.VARS_FOLDER_PATH }}/${{ env.ENVIRONMENT }}.tfvars
+          backend_config_file: ${{ env.TERRAFORM_ROOT }}${{ env.BACKEND_FOLDER_PATH }}/${{ env.ENVIRONMENT }}.s3.tfbackend
           auto_approve: true
 
       - name: Retry failed apply
