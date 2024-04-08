@@ -62,6 +62,8 @@ jobs:
     name: Terraform
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@v4
+
       - name: Uppercase environment name
         run: echo "ENVIRONMENT_UPPERCASE=$(echo ${{ env.ENVIRONMENT }} | tr '[:lower:]' '[:upper:]')" >> $GITHUB_ENV
 
@@ -74,7 +76,6 @@ jobs:
           aws-region: ${{ env.AWS_ACCOUNT_REGION }}
           role-to-assume: arn:aws:iam::${{ env.AWS_ACCOUNT_ID }}:role/github
 
-      - uses: actions/checkout@v4
 
       - name: terraform validate
         uses: dflook/terraform-validate@v1
