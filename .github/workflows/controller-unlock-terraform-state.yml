@@ -48,6 +48,7 @@ env:
   ENVIRONMENT: ${{ inputs.environment }}
   VARS_FOLDER_PATH: ${{ inputs.varsFolderPath || 'vars' }}
   BACKEND_FOLDER_PATH: ${{ inputs.backendFolderPath || 'backends' }}
+  TERRAFORM_ROOT: ${{ inputs.terraformFolder && format('{0}/', inputs.terraformFolder) || '' }}
 
 jobs:
   unlock:
@@ -75,10 +76,11 @@ jobs:
       - name: Terraform Unlock
         uses: dflook/terraform-unlock-state@v1
         with:
+          path: ${{ env.TERRAFORM_ROOT }}
           lock_id: ${{ inputs.lockId }}
           var_file: |
-            ${{ env.VARS_FOLDER_PATH }}/${{ env.ENVIRONMENT }}.tfvars
-          backend_config_file: ${{ env.BACKEND_FOLDER_PATH }}/${{ env.ENVIRONMENT }}.s3.tfbackend
+            ${{ env.TERRAFORM_ROOT }}${{ env.VARS_FOLDER_PATH }}/${{ env.ENVIRONMENT }}.tfvars
+          backend_config_file: ${{ env.TERRAFORM_ROOT }}${{ env.BACKEND_FOLDER_PATH }}/${{ env.ENVIRONMENT }}.s3.tfbackend
           auto_approve: true
 
 on:
