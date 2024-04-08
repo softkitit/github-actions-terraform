@@ -43,6 +43,7 @@ env:
   ENVIRONMENT: ${{ inputs.environment }}
   VARS_FOLDER_PATH: ${{ inputs.varsFolderPath || 'vars' }}
   BACKEND_FOLDER_PATH: ${{ inputs.backendFolderPath || 'backends' }}
+  TERRAFORM_ROOT: ${{ inputs.terraformFolder && format('{0}/', inputs.terraformFolder) || '' }}
 
 concurrency:
   group: ${{ inputs.environment }}
@@ -85,6 +86,7 @@ jobs:
         id: first_try
 
         with:
+          path: ${{ env.TERRAFORM_ROOT }}
           var_file: |
             ${{ env.VARS_FOLDER_PATH }}/${{ env.ENVIRONMENT }}.tfvars
           backend_config_file: ${{ env.BACKEND_FOLDER_PATH }}/${{ env.ENVIRONMENT }}.s3.tfbackend
@@ -94,9 +96,10 @@ jobs:
         uses: dflook/terraform-apply@v1
         if: ${{ steps.first_try.outputs.failure-reason == 'apply-failed' }}
         with:
+          path: ${{ env.TERRAFORM_ROOT }}
           var_file: |
-            ${{ env.VARS_FOLDER_PATH }}/${{ env.ENVIRONMENT }}.tfvars
-          backend_config_file: ${{ env.BACKEND_FOLDER_PATH }}/${{ env.ENVIRONMENT }}.s3.tfbackend
+            ${{ env.TERRAFORM_ROOT }}${{ env.VARS_FOLDER_PATH }}/${{ env.ENVIRONMENT }}.tfvars
+          backend_config_file: ${{ env.TERRAFORM_ROOT }}${{ env.BACKEND_FOLDER_PATH }}/${{ env.ENVIRONMENT }}.s3.tfbackend
           auto_approve: true
 
 on:
