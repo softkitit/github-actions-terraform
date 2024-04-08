@@ -47,6 +47,7 @@ env:
   ENVIRONMENT: ${{ inputs.environment }}
   VARS_FOLDER_PATH: ${{ inputs.varsFolderPath || 'vars' }}
   BACKEND_FOLDER_PATH: ${{ inputs.backendFolderPath || 'backends' }}
+  TERRAFORM_ROOT: ${{ inputs.terraformFolder || '.' }}
 
 concurrency:
   group: ${{ inputs.environment }}
@@ -58,7 +59,7 @@ jobs:
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     defaults:
       run:
-        working-directory: ${{ inputs.terraformFolder || '.' }}
+        working-directory: ${{ env.TERRAFORM_ROOT }}
     name: Terraform
     runs-on: ubuntu-latest
     steps:
@@ -79,9 +80,13 @@ jobs:
 
       - name: terraform validate
         uses: dflook/terraform-validate@v1
+        with:
+          path: ${{ env.TERRAFORM_ROOT }}
 
       - name: terraform fmt
         uses: dflook/terraform-fmt-check@v1
+        with:
+          path: ${{ env.TERRAFORM_ROOT }}
 
       - name: terraform plan
         uses: dflook/terraform-plan@v1
@@ -89,6 +94,7 @@ jobs:
           var_file: |
             ${{ env.VARS_FOLDER_PATH }}/${{ env.ENVIRONMENT }}.tfvars
           backend_config_file: ${{ env.BACKEND_FOLDER_PATH }}/${{ env.ENVIRONMENT }}.s3.tfbackend
+          path: ${{ env.TERRAFORM_ROOT }}
 
 on:
   workflow_call:
