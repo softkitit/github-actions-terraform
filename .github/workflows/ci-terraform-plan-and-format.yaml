@@ -47,7 +47,7 @@ env:
   ENVIRONMENT: ${{ inputs.environment }}
   VARS_FOLDER_PATH: ${{ inputs.varsFolderPath || 'vars' }}
   BACKEND_FOLDER_PATH: ${{ inputs.backendFolderPath || 'backends' }}
-  TERRAFORM_ROOT: ${{ inputs.terraformFolder || '.' }}
+  TERRAFORM_ROOT: ${{ inputs.terraformFolder && format('{0}/', inputs.terraformFolder) || '' }}
 
 concurrency:
   group: ${{ inputs.environment }}
@@ -92,8 +92,8 @@ jobs:
         uses: dflook/terraform-plan@v1
         with:
           var_file: |
-            ${{ env.VARS_FOLDER_PATH }}/${{ env.ENVIRONMENT }}.tfvars
-          backend_config_file: ${{ env.BACKEND_FOLDER_PATH }}/${{ env.ENVIRONMENT }}.s3.tfbackend
+            ${{ env.TERRAFORM_ROOT }}/${{ env.VARS_FOLDER_PATH }}/${{ env.ENVIRONMENT }}.tfvars
+          backend_config_file: ${{ env.TERRAFORM_ROOT }}/${{ env.BACKEND_FOLDER_PATH }}/${{ env.ENVIRONMENT }}.s3.tfbackend
           path: ${{ env.TERRAFORM_ROOT }}
 
 on:
