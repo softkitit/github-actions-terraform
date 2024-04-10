@@ -85,7 +85,7 @@ jobs:
         continue-on-error: true
         id: first_try
         with:
-          path: ${{ env.TERRAFORM_ROOT }}
+          path: ${{ env.TERRAFORM_ROOT || '.' }}
           var_file: |
             ${{ env.TERRAFORM_ROOT }}${{ env.VARS_FOLDER_PATH }}/${{ env.ENVIRONMENT }}.tfvars
           backend_config_file: ${{ env.TERRAFORM_ROOT }}${{ env.BACKEND_FOLDER_PATH }}/${{ env.ENVIRONMENT }}.s3.tfbackend
@@ -95,7 +95,7 @@ jobs:
         uses: dflook/terraform-apply@v1
         if: ${{ steps.first_try.outputs.failure-reason == 'apply-failed' }}
         with:
-          path: ${{ env.TERRAFORM_ROOT }}
+          path: ${{ env.TERRAFORM_ROOT || '.' }}
           var_file: |
             ${{ env.TERRAFORM_ROOT }}${{ env.VARS_FOLDER_PATH }}/${{ env.ENVIRONMENT }}.tfvars
           backend_config_file: ${{ env.TERRAFORM_ROOT }}${{ env.BACKEND_FOLDER_PATH }}/${{ env.ENVIRONMENT }}.s3.tfbackend
