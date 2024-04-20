@@ -35,10 +35,12 @@ inputs:
 
 runs:
   using: "composite"
-  env:
-    USE_PROVIDED_CREDENTIALS: ${{ inputs.awsRegion != '' && inputs.awsAccessKeyId != '' && inputs.awsSecretAccessKey != '' && inputs.awsSessionToken != '' }}
-    USE_OIDC: ${{ inputs.awsAccessKeyId == '' && inputs.roleName != '' }}
   steps:
+    - name: Set environment variables
+      run: |
+        echo "USE_OIDC=${{ inputs.awsAccessKeyId == '' && inputs.roleName != '' }}" >> $GITHUB_ENV
+        echo "USE_PROVIDED_CREDENTIALS=${{ inputs.awsRegion != '' && inputs.awsAccessKeyId != '' && inputs.awsSecretAccessKey != '' && inputs.awsSessionToken != '' }}" >> $GITHUB_ENV
+
     - name: Uppercase environment name
       if: ${{ env.USE_OIDC }}
       run: | 
