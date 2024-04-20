@@ -37,17 +37,20 @@ runs:
   using: "composite"
   steps:
     - name: Set environment variables
+      shell: bash
       run: |
         echo "USE_OIDC=${{ inputs.awsAccessKeyId == '' && inputs.roleName != '' }}" >> $GITHUB_ENV
         echo "USE_PROVIDED_CREDENTIALS=${{ inputs.awsRegion != '' && inputs.awsAccessKeyId != '' && inputs.awsSecretAccessKey != '' && inputs.awsSessionToken != '' }}" >> $GITHUB_ENV
 
     - name: Uppercase environment name
       if: ${{ env.USE_OIDC }}
+      shell: bash
       run: | 
         echo "ENVIRONMENT_UPPERCASE=$(echo ${{ env.ENVIRONMENT }} | tr '[:lower:]' '[:upper:]')" >> $GITHUB_ENV
 
     - name: Retrieve AWS account ID and region from vars
       if: ${{ env.USE_OIDC }}
+      shell: bash
       run: |
         echo "AWS_ACCOUNT_ID=${{ vars[format('{0}_AWS_ACCOUNT_ID', env.ENVIRONMENT_UPPERCASE )] }}" >> $GITHUB_ENV
         echo "AWS_ACCOUNT_REGION=${{ vars[format('{0}_AWS_ACCOUNT_REGION', env.ENVIRONMENT_UPPERCASE )] }}" >> $GITHUB_ENV
