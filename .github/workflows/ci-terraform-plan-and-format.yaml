@@ -39,7 +39,7 @@ name: |-
   ```
 
 permissions:
-  contents: read
+  contents: write
   pull-requests: write
   id-token: write
 
