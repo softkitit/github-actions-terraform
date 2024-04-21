@@ -131,6 +131,7 @@ jobs:
           var_file: ${{ env.VARS_FILE }}
           backend_config_file: ${{ env.BACKEND_CONFIG_FILE }}
           path: ${{ env.TERRAFORM_ROOT }}
+          variables: ${{ inputs.additionalVariables }}
           add_github_comment: ${{ inputs.overridePlanComment && true || 'always-new' }}
 
 on:
@@ -167,3 +168,8 @@ on:
         type: string
         required: false
         default: "github"
+
+      additionalVariables:
+        description: "Additional variables to pass to the terraform apply command"
+        type: string
+        required: false
