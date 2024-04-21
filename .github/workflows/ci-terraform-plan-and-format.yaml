@@ -115,7 +115,7 @@ on:
         description: "Override the default plan comment in the PR"
         type: boolean
         default: true
-        required: true
+        required: false
 
       terraformFolder:
         description: "Root folder path for terraform files"
