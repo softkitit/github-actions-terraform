@@ -44,10 +44,9 @@ permissions:
   id-token: write
 
 env:
-  ENVIRONMENT: ${{ inputs.environment }}
   VARS_FOLDER_PATH: ${{ inputs.varsFolderPath || 'vars' }}
   BACKEND_FOLDER_PATH: ${{ inputs.backendFolderPath || 'backends' }}
-  TERRAFORM_ROOT: ${{ inputs.terraformFolder && format('{0}/', inputs.terraformFolder) || '' }}
+  TERRAFORM_ROOT: ${{ inputs.terraformFolder && format('{0}/', inputs.terraformFolder) || '.' }}
 
 concurrency:
   group: ${{ inputs.environment }}
@@ -57,37 +56,52 @@ jobs:
   terraform:
     env:
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-    defaults:
-      run:
-        working-directory: ${{ env.TERRAFORM_ROOT || '.' }}
     name: Terraform
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
-      - name: Configure AWS credentials
-        uses: softkitit/github-actions-terraform/actions/configure-aws-credentials@main
+      - name: Get env information
+        id: env
+        uses: softkitit/github-actions-terraform/actions/environment-information@main
         with:
-          environment: ${{ env.ENVIRONMENT }}
-          roleName: ${{ inputs.roleName }}
+          environment: ${{ inputs.environment }}
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        env:
+          AWS_ACCOUNT_ID: ${{ vars[format('{0}_AWS_ACCOUNT_ID', env.ENVIRONMENT_UPPERCASE )] }}
+          AWS_ACCOUNT_REGION: ${{ vars[format('{0}_AWS_ACCOUNT_REGION', env.ENVIRONMENT_UPPERCASE )] }}
+        with:
+          aws-region: ${{ vars[steps.env.outputs.awsRegion] }}
+          role-to-assume: arn:aws:iam::${{ vars[steps.env.outputs.awsAccountIdKey] }}:role/${{ inputs.roleName }}
+
+      - name: Set vars and backend files paths
+        run: |
+          echo "VARS_FILE=${{ env.TERRAFORM_ROOT == '.' && '' || env.TERRAFORM_ROOT }}${{ env.VARS_FOLDER_PATH }}/${{ inputs.environment }}.tfvars" >> $GITHUB_ENV
+          echo "BACKEND_CONFIG_FILE=${{ env.TERRAFORM_ROOT == "." && "" || env.TERRAFORM_ROOT }}${{ env.BACKEND_FOLDER_PATH }}/${{ env.ENVIRONMENT }}.s3.tfbackend" >> $GITHUB_ENV
 
       - name: terraform validate
         uses: dflook/terraform-validate@v1
         with:
-          path: ${{ env.TERRAFORM_ROOT || '.' }}
+          path: ${{ env.TERRAFORM_ROOT }}
+          backend_config_file: ${{ env.BACKEND_CONFIG_FILE }}
 
       - name: terraform fmt
         uses: dflook/terraform-fmt-check@v1
         with:
-          path: ${{ env.TERRAFORM_ROOT || '.' }}
+          path: ${{ env.TERRAFORM_ROOT }}
+          backend_config_file: ${{ env.BACKEND_CONFIG_FILE }}
 
       - name: terraform plan
         uses: dflook/terraform-plan@v1
+        env:
+          TF_PLAN_COLLAPSE_LENGTH: 30
         with:
-          var_file: |
-            ${{ env.TERRAFORM_ROOT }}${{ env.VARS_FOLDER_PATH }}/${{ env.ENVIRONMENT }}.tfvars
-          backend_config_file: ${{ env.TERRAFORM_ROOT }}${{ env.BACKEND_FOLDER_PATH }}/${{ env.ENVIRONMENT }}.s3.tfbackend
-          path: ${{ env.TERRAFORM_ROOT || '.' }}
+          var_file: ${{ env.VARS_FILE }}
+          backend_config_file: ${{ env.BACKEND_CONFIG_FILE }}
+          path: ${{ env.TERRAFORM_ROOT }}
+          add_github_comment: ${{ inputs.overridePlanComment && true || 'always-new' }}
 
 on:
   workflow_call:
@@ -95,6 +109,12 @@ on:
       environment:
         description: "Environment name (master, prod, dev, security, etc...)"
         type: string
+        required: true
+
+      overridePlanComment:
+        description: "Override the default plan comment in the PR"
+        type: boolean
+        default: true
         required: true
 
       terraformFolder:

@@ -1,0 +1,34 @@
+name: "Environment Information"
+description: "Retrieve environment information like secret names, account IDs, etc."
+
+inputs:
+  environment:
+    description: "Environment name (master, prod, dev, security, etc...)"
+    required: true
+
+outputs:
+  awsAccountIdKey:
+    value: ${{ steps.aws-keys.outputs.AWS_ACCOUNT_ID_KEY }}
+    description: "AWS Account ID Key"
+  awsRegionKey:
+    value: ${{ steps.aws-keys.outputs.AWS_ACCOUNT_REGION_KEY }}
+    description: "AWS Region Key"
+  environmentUppercase:
+    value: ${{ steps.uppercase-env.outputs.ENVIRONMENT_UPPERCASE }}
+    description: "Environment name in uppercase"
+
+runs:
+  using: "composite"
+  steps:
+    - name: Uppercase environment name
+      id: uppercase-env
+      shell: bash
+      run: |
+        echo "ENVIRONMENT_UPPERCASE=$(echo ${{ env.ENVIRONMENT }} | tr '[:lower:]' '[:upper:]')" >> $GITHUB_ENV
+
+    - name: Define AWS account ID and region keys
+      id: aws-keys
+      shell: bash
+      run: |
+        echo "AWS_ACCOUNT_ID_KEY=${{ format('{0}_AWS_ACCOUNT_ID', env.ENVIRONMENT_UPPERCASE) }}" >> $GITHUB_ENV
+        echo "AWS_ACCOUNT_REGION_KEY=${{ format('{0}_AWS_ACCOUNT_REGION', env.ENVIRONMENT_UPPERCASE) }}" >> $GITHUB_ENV
