@@ -69,11 +69,8 @@ jobs:
 
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
-        env:
-          AWS_ACCOUNT_ID: ${{ vars[format('{0}_AWS_ACCOUNT_ID', env.ENVIRONMENT_UPPERCASE )] }}
-          AWS_ACCOUNT_REGION: ${{ vars[format('{0}_AWS_ACCOUNT_REGION', env.ENVIRONMENT_UPPERCASE )] }}
         with:
-          aws-region: ${{ vars[steps.env.outputs.awsRegion] }}
+          aws-region: ${{ vars[steps.env.outputs.awsRegionKey] }}
           role-to-assume: arn:aws:iam::${{ vars[steps.env.outputs.awsAccountIdKey] }}:role/${{ inputs.roleName }}
 
       - name: Set vars and backend files paths
