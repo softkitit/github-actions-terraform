@@ -67,6 +67,11 @@ jobs:
         with:
           environment: ${{ inputs.environment }}
 
+      - name: Echo output
+        run: |
+          echo ${{ steps.env.outputs.awsRegionKey }}
+          echo ${{ steps.env.outputs.* }}
+
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
