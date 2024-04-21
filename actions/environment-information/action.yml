@@ -13,9 +13,6 @@ outputs:
   awsRegionKey:
     value: ${{ steps.aws-keys.outputs.AWS_ACCOUNT_REGION_KEY }}
     description: "AWS Region Key"
-  environmentUppercase:
-    value: ${{ steps.uppercase-env.outputs.ENVIRONMENT_UPPERCASE }}
-    description: "Environment name in uppercase"
 
 runs:
   using: "composite"
@@ -24,7 +21,7 @@ runs:
       id: uppercase-env
       shell: bash
       run: |
-        echo "ENVIRONMENT_UPPERCASE=$(echo ${{ inputs.environment }} | tr '[:lower:]' '[:upper:]')" >> $GITHUB_OUTPUT
+        echo "ENVIRONMENT_UPPERCASE=$(echo ${{ inputs.environment }} | tr '[:lower:]' '[:upper:]')" >> $GITHUB_ENV
 
     - name: Define AWS account ID and region keys
       id: aws-keys
