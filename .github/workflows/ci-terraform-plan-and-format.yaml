@@ -81,7 +81,7 @@ jobs:
       - name: Set vars and backend files paths
         run: |
           echo "VARS_FILE=${{ env.TERRAFORM_ROOT == '.' && '' || env.TERRAFORM_ROOT }}${{ env.VARS_FOLDER_PATH }}/${{ inputs.environment }}.tfvars" >> $GITHUB_ENV
-          echo "BACKEND_CONFIG_FILE=${{ env.TERRAFORM_ROOT == '.' && '' || env.TERRAFORM_ROOT }}${{ env.BACKEND_FOLDER_PATH }}/${{ env.ENVIRONMENT }}.s3.tfbackend" >> $GITHUB_ENV
+          echo "BACKEND_CONFIG_FILE=${{ env.TERRAFORM_ROOT == '.' && '' || env.TERRAFORM_ROOT }}${{ env.BACKEND_FOLDER_PATH }}/${{ inputs.environment }}.s3.tfbackend" >> $GITHUB_ENV
 
       - name: terraform validate
         uses: dflook/terraform-validate@v1
