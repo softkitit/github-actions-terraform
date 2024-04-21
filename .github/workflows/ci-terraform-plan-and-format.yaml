@@ -67,16 +67,11 @@ jobs:
         with:
           environment: ${{ inputs.environment }}
 
-      - name: Echo output
-        run: |
-          echo ${{ steps.env.outputs.awsRegionKey }}
-          echo ${{ join(steps.env.outputs.*, ',') }}
-
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          aws-region: ${{ vars[format('{0}', steps.env.outputs.awsRegionKey)] }}
-          role-to-assume: arn:aws:iam::${{ vars[format('{0}', steps.env.outputs.awsAccountIdKey)] }}:role/${{ inputs.roleName }}
+          aws-region: ${{ vars[steps.env.outputs.awsRegionKey] }}
+          role-to-assume: arn:aws:iam::${{ vars[steps.env.outputs.awsAccountIdKey] }}:role/${{ inputs.roleName }}
 
       - name: Set vars and backend files paths
         run: |
