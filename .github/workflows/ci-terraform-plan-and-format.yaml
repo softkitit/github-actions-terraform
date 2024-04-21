@@ -60,6 +60,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.head_ref }}
 
       - name: Get env information
         id: env
@@ -84,11 +86,41 @@ jobs:
           path: ${{ env.TERRAFORM_ROOT }}
           backend_config_file: ${{ env.BACKEND_CONFIG_FILE }}
 
-      - name: terraform fmt
+      - name: terraform check fmt
+        uses: dflook/terraform-fmt-check@v1
+        id: fmt-check
+        with:
+          path: ${{ env.TERRAFORM_ROOT }}
+          backend_config_file: ${{ env.BACKEND_CONFIG_FILE }}
+        continue-on-error: true
+
+      - name: terraform fix fmt
+        if: steps.fmt-check.outcome == 'failure'
+        uses: dflook/terraform-fmt@v1
+        with:
+          path: ${{ env.TERRAFORM_ROOT }}
+          backend_config_file: ${{ env.BACKEND_CONFIG_FILE }}
+
+      - name: check terraform format again
+        if: steps.fmt-check.outcome == 'failure'
         uses: dflook/terraform-fmt-check@v1
         with:
           path: ${{ env.TERRAFORM_ROOT }}
           backend_config_file: ${{ env.BACKEND_CONFIG_FILE }}
+
+      - uses: stefanzweifel/git-auto-commit-action@v5
+        if: steps.fmt-check.outcome == 'failure'
+        with:
+          commit_message: Auto fix formatting
+          commit_options: '--no-verify --signoff'
+          commit_user_name: ${{ github.actor }}
+          commit_user_email: ${{ github.actor_id }}+${{ github.actor }}@users.noreply.github.com
+          status_options: '--untracked-files=no'
+          skip_dirty_check: true
+          skip_fetch: true
+          skip_checkout: true
+          disable_globbing: true
+          create_branch: false
 
       - name: terraform plan
         uses: dflook/terraform-plan@v1
