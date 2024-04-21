@@ -24,11 +24,11 @@ runs:
       id: uppercase-env
       shell: bash
       run: |
-        echo "ENVIRONMENT_UPPERCASE=$(echo ${{ inputs.environment }} | tr '[:lower:]' '[:upper:]')" >> $GITHUB_ENV
+        echo "ENVIRONMENT_UPPERCASE=$(echo ${{ inputs.environment }} | tr '[:lower:]' '[:upper:]')" >> $GITHUB_OUTPUT
 
     - name: Define AWS account ID and region keys
       id: aws-keys
       shell: bash
       run: |
-        echo "AWS_ACCOUNT_ID_KEY=${{ format('{0}_AWS_ACCOUNT_ID', env.ENVIRONMENT_UPPERCASE) }}" >> $GITHUB_ENV
-        echo "AWS_ACCOUNT_REGION_KEY=${{ format('{0}_AWS_ACCOUNT_REGION', env.ENVIRONMENT_UPPERCASE) }}" >> $GITHUB_ENV
+        echo "AWS_ACCOUNT_ID_KEY=${{ format('{0}_AWS_ACCOUNT_ID', env.ENVIRONMENT_UPPERCASE) }}" >> $GITHUB_OUTPUT
+        echo "AWS_ACCOUNT_REGION_KEY=${{ format('{0}_AWS_ACCOUNT_REGION', env.ENVIRONMENT_UPPERCASE) }}" >> $GITHUB_OUTPUT
