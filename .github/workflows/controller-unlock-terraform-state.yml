@@ -16,15 +16,15 @@ name: |-
       unlock_state:
         uses: softkitit/github-actions-terraform/.github/workflows/controller-unlock-terraform-state.yml@main
         with:
-          lockId: $\{\{ inputs.lockId \}\}
+          lock-id: $\{\{ inputs.lock-id \}\}
           environment: $\{\{ inputs.environment \}\}
-          terraformFolder: '.'
+          terraform-folder: '.'
         secrets: inherit
   
     on:
       workflow_dispatch:
         inputs:
-          lockId:
+          lock-id:
             description: "Lock id"
             required: true
           environment:
@@ -41,14 +41,8 @@ permissions:
   contents: read
 
 concurrency:
-  group: ${{ inputs.lockId }}
+  group: ${{ inputs.environment }}
   cancel-in-progress: true
-
-env:
-  ENVIRONMENT: ${{ inputs.environment }}
-  VARS_FOLDER_PATH: ${{ inputs.varsFolderPath || 'vars' }}
-  BACKEND_FOLDER_PATH: ${{ inputs.backendFolderPath || 'backends' }}
-  TERRAFORM_ROOT: ${{ inputs.terraformFolder && format('{0}/', inputs.terraformFolder) || '' }}
 
 jobs:
   unlock:
@@ -56,31 +50,39 @@ jobs:
     runs-on: ubuntu-latest
     defaults:
       run:
-        working-directory: ${{ inputs.terraformFolder || '.' }}
+        working-directory: ${{ inputs.terraform-folder || '.' }}
     steps:
       - name: Checkout current branch
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.head_ref }}
 
-      - name: Uppercase environment name
-        run: echo "ENVIRONMENT_UPPERCASE=$(echo ${{ env.ENVIRONMENT }} | tr '[:lower:]' '[:upper:]')" >> $GITHUB_ENV
+      - name: Get env information
+        id: env
+        uses: softkitit/github-actions-terraform/actions/environment-information@main
+        with:
+          environment: ${{ inputs.environment }}
+
+      - name: Build terraform files paths
+        id: tf
+        uses: softkitit/github-actions-terraform/actions/terraform-paths@main
+        with:
+          environment: ${{ inputs.environment }}
+          terraform-folder: ${{ inputs.terraform-folder }}
 
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
-        env:
-          AWS_ACCOUNT_ID: ${{ vars[format('{0}_AWS_ACCOUNT_ID', env.ENVIRONMENT_UPPERCASE )] }}
-          AWS_ACCOUNT_REGION: ${{ vars[format('{0}_AWS_ACCOUNT_REGION', env.ENVIRONMENT_UPPERCASE )] }}
         with:
-          aws-region: ${{ env.AWS_ACCOUNT_REGION }}
-          role-to-assume: arn:aws:iam::${{ env.AWS_ACCOUNT_ID }}:role/github
+          aws-region: ${{ vars[steps.env.outputs.aws-region-key] }}
+          role-to-assume: arn:aws:iam::${{ vars[steps.env.outputs.aws-account-id-key] }}:role/${{ inputs.roleName }}
 
       - name: Terraform Unlock
         uses: dflook/terraform-unlock-state@v1
         with:
-          path: ${{ env.TERRAFORM_ROOT }}
-          lock_id: ${{ inputs.lockId }}
-          var_file: |
-            ${{ env.TERRAFORM_ROOT }}${{ env.VARS_FOLDER_PATH }}/${{ env.ENVIRONMENT }}.tfvars
-          backend_config_file: ${{ env.TERRAFORM_ROOT }}${{ env.BACKEND_FOLDER_PATH }}/${{ env.ENVIRONMENT }}.s3.tfbackend
+          path: ${{ steps.tf.outputs.root }}
+          backend_config_file: ${{ steps.tf.outputs.backend-file }}
+          var_file: ${{ steps.tf.outputs.vars-file }}
+          lock_id: ${{ inputs.lock-id }}
           auto_approve: true
 
 on:
@@ -91,22 +93,18 @@ on:
         type: string
         required: true
 
-      terraformFolder:
+      terraform-folder:
         description: "Root folder path for terraform files"
         type: string
         required: false
 
-      varsFolderPath:
-        description: "Vars folder path for generated tfvars file"
-        type: string
-        required: false
-
-      backendFolderPath:
-        description: "Backends folder path for generated tfbackend file"
-        type: string
-        required: false
-
-      lockId:
+      lock-id:
         description: "Lock ID to be unlocked"
         type: string
         required: true
+
+      role-name:
+        description: "AWS role name to assume for the terraform state initialization"
+        type: string
+        required: false
+        default: "github"
