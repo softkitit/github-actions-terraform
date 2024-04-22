@@ -1,0 +1,49 @@
+name: "Build terraform paths information"
+description: "It allows to easily define the paths for the terraform var and backend files as well as root directory"
+
+inputs:
+  environment:
+    description: "Environment name (master, prod, dev, security, etc...)"
+    required: true
+
+  terraform-folder:
+    description: "Root folder path for terraform files"
+    required: false
+
+  vars-folder-name:
+    description: "Vars folder name"
+    default: "vars"
+    required: false
+
+  backend-folder-name:
+    description: "Vars folder name"
+    default: "vars"
+    required: false
+
+outputs:
+  root:
+    value: ${{ steps.paths.outputs.root }}
+    description: "Terraform root folder path"
+  vars-file:
+    value: ${{ steps.paths.outputs.vars-file }}
+    description: "Vars file path"
+  backend-file:
+    value: ${{ steps.paths.outputs.backend-file }}
+    description: "Backend file path"
+
+runs:
+  using: "composite"
+  steps:
+    - name: Set root folder environment variable
+      shell: bash
+      run: | 
+        echo "TERRAFORM_ROOT_PATH=${{ inputs.terraformFolder && format('{0}/', inputs.terraformFolder) || '.' }}" >> $GITHUB_ENV
+
+    - name: Set vars and backend files paths
+      id: paths
+      shell: bash
+      run: |
+        echo "vars-file=${{ env.TERRAFORM_ROOT_PATH == '.' && '' || env.TERRAFORM_ROOT_PATH }}${{ inputs.vars-file }}/${{ inputs.environment }}.tfvars" >> $GITHUB_OUTPUT
+        echo "backend-file=${{ env.TERRAFORM_ROOT_PATH == '.' && '' || env.TERRAFORM_ROOT_PATH }}${{ inputs.backend-file }}/${{ inputs.environment }}.s3.tfbackend" >> $GITHUB_OUTPUT
+        echo "root=${{ env.TERRAFORM_ROOT_PATH }}" >> $GITHUB_OUTPUT
+

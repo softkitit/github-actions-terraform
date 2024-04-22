@@ -7,11 +7,11 @@ inputs:
     required: true
 
 outputs:
-  awsAccountIdKey:
-    value: ${{ steps.aws-keys.outputs.AWS_ACCOUNT_ID_KEY }}
+  aws-account-id-key:
+    value: ${{ steps.aws-keys.outputs.aws-account-id-key }}
     description: "AWS Account ID Key"
-  awsRegionKey:
-    value: ${{ steps.aws-keys.outputs.AWS_ACCOUNT_REGION_KEY }}
+  aws-region-key:
+    value: ${{ steps.aws-keys.outputs.aws-region-key }}
     description: "AWS Region Key"
 
 runs:
@@ -27,5 +27,5 @@ runs:
       id: aws-keys
       shell: bash
       run: |
-        echo "AWS_ACCOUNT_ID_KEY=${{ format('{0}_AWS_ACCOUNT_ID', env.ENVIRONMENT_UPPERCASE) }}" >> $GITHUB_OUTPUT
-        echo "AWS_ACCOUNT_REGION_KEY=${{ format('{0}_AWS_ACCOUNT_REGION', env.ENVIRONMENT_UPPERCASE) }}" >> $GITHUB_OUTPUT
+        echo "aws-account-id-key=${{ format('{0}_AWS_ACCOUNT_ID', env.ENVIRONMENT_UPPERCASE) }}" >> $GITHUB_OUTPUT
+        echo "aws-region-key=${{ format('{0}_AWS_ACCOUNT_REGION', env.ENVIRONMENT_UPPERCASE) }}" >> $GITHUB_OUTPUT
