@@ -43,7 +43,7 @@ runs:
       id: paths
       shell: bash
       run: |
-        echo "vars-file=${{ env.TERRAFORM_ROOT_PATH == '.' && '' || env.TERRAFORM_ROOT_PATH }}${{ inputs.vars-file }}/${{ inputs.environment }}.tfvars" >> $GITHUB_OUTPUT
-        echo "backend-file=${{ env.TERRAFORM_ROOT_PATH == '.' && '' || env.TERRAFORM_ROOT_PATH }}${{ inputs.backend-file }}/${{ inputs.environment }}.s3.tfbackend" >> $GITHUB_OUTPUT
+        echo "vars-file=${{ env.TERRAFORM_ROOT_PATH == '.' && '' || env.TERRAFORM_ROOT_PATH }}${{ inputs.vars-folder-name }}/${{ inputs.environment }}.tfvars" >> $GITHUB_OUTPUT
+        echo "backend-file=${{ env.TERRAFORM_ROOT_PATH == '.' && '' || env.TERRAFORM_ROOT_PATH }}${{ inputs.backend-folder-name }}/${{ inputs.environment }}.s3.tfbackend" >> $GITHUB_OUTPUT
         echo "root=${{ env.TERRAFORM_ROOT_PATH }}" >> $GITHUB_OUTPUT
 

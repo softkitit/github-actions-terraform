@@ -69,6 +69,7 @@ jobs:
         id: tf
         uses: softkitit/github-actions-terraform/actions/terraform-paths@main
         with:
+          environment: ${{ inputs.environment }}
           terraform-folder: ${{ inputs.terraform-folder }}
 
       - name: Configure AWS credentials
