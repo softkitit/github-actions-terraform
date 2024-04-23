@@ -15,25 +15,25 @@ name: |-
       init_state:
         uses: softkitit/github-actions-terraform/.github/workflows/controller-initialize-terraform-state.yml@main
         with:
-          repository: $\{\{ github.event.repository.name \}\}
+          project-name: $\{\{ github.event.repository.name \}\}
           organization: $\{\{ github.event.repository.owner.login \}\}
-          awsRegion: eu-central-1
-          awsAccessKeyId: $\{\{ inputs.awsAccessKeyId \}\}
-          awsSecretAccessKey: $\{\{ inputs.awsSecretAccessKey \}\}
-          awsSessionToken: $\{\{ inputs.awsSessionToken \}\}
-          terraformFolder: '.'
+          aws-region: eu-central-1
+          aws-access-key-id: $\{\{ inputs.aws-access-key-id \}\}
+          aws-secret-access-key: $\{\{ inputs.aws-secret-access-key \}\}
+          aws-session-token: $\{\{ inputs.aws-session-token \}\}
+          terraform-folder: '.'
         secrets: inherit
   
     on:
       workflow_dispatch:
         inputs:
-          awsAccessKeyId:
+          aws-access-key-id:
             description: "AWS Access Key ID"
             required: true
-          awsSecretAccessKey:
+          aws-secret-access-key:
             description: "AWS Secret Access Key"
             required: true
-          awsSessionToken:
+          aws-session-token:
             description: "AWS Session Token"
             required: true
           environment:
@@ -46,86 +46,110 @@ permissions:
   # added or changed files to the repository.
   contents: write
   pull-requests: write
+  id-token: write
 
 concurrency:
-  group: single-group
+  group: ${{ inputs.environment }}
   cancel-in-progress: false
 
 env:
-  VARS_FOLDER_PATH: ${{ inputs.varsFolderPath || 'vars' }}
-  BACKEND_FOLDER_PATH: ${{ inputs.backendFolderPath || 'backends' }}
-  VARS_FILE_NAME: ${{ inputs.varsFolderPath || 'vars' }}/${{inputs.environment}}.tfvars
-  MOCK_BACKEND_FILE_NAME: ${{ inputs.mockBackendFileName || 'backend.tf' }}
-  BACKEND_FILE_NAME: ${{ inputs.backendFolderPath || 'backends' }}/${{ inputs.environment }}.s3.tfbackend
   BRANCH_NAME: terraform-state/${{inputs.environment}}-${{ github.run_id }}-${{ github.run_attempt }}
-  TF_STATE_FILE_NAME: ${{ inputs.environment }}-${{ inputs.tfStateFileName || 'terraform.tfstate' }}
-  DYNAMODB_TABLE_NAME: ${{ inputs.dynamoDbTableName || format('{0}-{1}-{2}', inputs.environment, inputs.organization, inputs.repository) }}
-  S3_BUCKET_NAME: ${{ inputs.s3BucketName || format('{0}-{1}-{2}', inputs.environment, inputs.organization, inputs.repository) }}
+  TF_STATE_FILE_NAME: ${{ inputs.environment }}-${{ inputs.tfStateFileName || '${{ inputs.project-name }}-terraform.tfstate' }}
+  DYNAMODB_TABLE_NAME: ${{ inputs.dynamo-db-table-name || format('{0}-{1}-{2}', inputs.environment, inputs.organization, inputs.project-name) }}
+  S3_BUCKET_NAME: ${{ inputs.s3-bucket-name || format('{0}-{1}-{2}', inputs.environment, inputs.organization, inputs.project-name) }}
 
 jobs:
   init_state:
     name: Perform terraform state initialization
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: ${{ inputs.terraformFolder || '.' }}
     steps:
       - name: Checkout current branch
         uses: actions/checkout@v4
+        with:
+          ref: ${{ github.head_ref }}
 
-      - name: Configure AWS Credentials
+      - name: Get env information
+        id: env
+        uses: softkitit/github-actions-terraform/actions/environment-information@main
+        with:
+          environment: ${{ inputs.environment }}
+
+      - name: Build terraform files paths
+        id: tf
+        uses: softkitit/github-actions-terraform/actions/terraform-paths@main
+        with:
+          environment: ${{ inputs.environment }}
+          terraform-folder: ${{ inputs.terraform-folder }}
+
+      - name: Configure AWS credentials through OIDC
+        if: ${{ !inputs.aws-secret-access-key }}
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          aws-region: ${{ inputs.awsRegion }}
-          aws-access-key-id: ${{ inputs.awsAccessKeyId }}
-          aws-secret-access-key: ${{ inputs.awsSecretAccessKey }}
-          aws-session-token: ${{ inputs.awsSessionToken }}
+          aws-region: ${{ vars[steps.env.outputs.aws-region-key] }}
+          role-to-assume: arn:aws:iam::${{ vars[steps.env.outputs.aws-account-id-key] }}:role/${{ inputs.role-name }}
 
-      - name: Setup terraform
-        uses: hashicorp/setup-terraform@v3
+      - name: Configure AWS Credentials through provided credentials
+        if: ${{ inputs.aws-secret-access-key }}
+        uses: aws-actions/configure-aws-credentials@v4
         with:
-          terraform_version: "~1.7.0"
+          aws-region: ${{ inputs.aws-region }}
+          aws-access-key-id: ${{ inputs.aws-access-key-id }}
+          aws-secret-access-key: ${{ inputs.aws-secret-access-key }}
+          aws-session-token: ${{ inputs.aws-session-token }}
+
+      - name: Get terraform version
+        uses: dflook/terraform-version@v1
+        id: tf-version
+        with:
+          path: ${{ steps.tf.outputs.root }}
+
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ steps.tf-version.outputs.terraform }}
           terraform_wrapper: false
 
       - name: Remove backend mock file, it's not needed for initialization stage and must be removed
-        run: rm $MOCK_BACKEND_FILE_NAME || 0
-
-      - name: Terraform init
-        run: terraform init
+        working-directory: ${{ steps.tf.outputs.root }}
+        run: rm ${{ inputs.mock-backend-file-name }} || 0
 
       - name: Generate vars file
         run: | 
-          echo 'environment = "${{inputs.environment}}"' > $VARS_FILE_NAME 
-          echo 'aws_region = "${{inputs.awsRegion}}"' >> $VARS_FILE_NAME 
-          echo 'repository_name = "${{inputs.repository}}"' >> $VARS_FILE_NAME 
-          echo 'github_org_name = "${{inputs.organization}}"' >> $VARS_FILE_NAME 
-          echo "tf_state_file_name = \"${TF_STATE_FILE_NAME}\"" >> $VARS_FILE_NAME 
-          echo "dynamo_db_table_name = \"${DYNAMODB_TABLE_NAME}\"" >> $VARS_FILE_NAME
-          echo "s3_bucket_name = \"${S3_BUCKET_NAME}\"" >> $VARS_FILE_NAME
-          terraform fmt $VARS_FILE_NAME
+          echo 'environment = "${{inputs.environment}}"' > ${{ steps.tf.outputs.vars-file }} 
+          echo 'aws_region = "${{inputs.aws-region}}"' >> ${{ steps.tf.outputs.vars-file }} 
+          echo 'project_name = "${{inputs.project-name}}"' >> ${{ steps.tf.outputs.vars-file }} 
+          echo 'github_org_name = "${{inputs.organization}}"' >> ${{ steps.tf.outputs.vars-file }} 
+          echo "tf_state_file_name = \"${TF_STATE_FILE_NAME}\"" >> ${{ steps.tf.outputs.vars-file }} 
+          echo "dynamo_db_table_name = \"${DYNAMODB_TABLE_NAME}\"" >> ${{ steps.tf.outputs.vars-file }}
+          echo "s3_bucket_name = \"${S3_BUCKET_NAME}\"" >> ${{ steps.tf.outputs.vars-file }}
 
       - name: Terraform Plan
         id: plan
-        run: terraform plan -var-file="$VARS_FILE_NAME" -no-color -target="module.terraform_state_backend" -target="module.oidc_github"
+        run: terraform plan -var-file="${{ steps.tf.outputs.vars-file }}" -no-color -target="module.${{ inputs.tf-state-module-name }}" -target="module.${{ inputs.oidc-module-name }}"
 
       - name: Terraform Apply
         id: apply
-        run: terraform apply -auto-approve -var-file="$VARS_FILE_NAME" -no-color -target="module.terraform_state_backend" -target="module.oidc_github"
-        continue-on-error: true
+        run: terraform apply -auto-approve -var-file="${{ steps.tf.outputs.vars-file }}" -no-color -target="module.${{ inputs.tf-state-module-name }}" -target="module.${{ inputs.oidc-module-name }}"
 
       - name: Generate backend HCL file
         run: |
-          echo 'region         = "${{inputs.awsRegion}}"' > $BACKEND_FILE_NAME
-          echo "bucket         = \"${S3_BUCKET_NAME}\"" >> $BACKEND_FILE_NAME
-          echo "key            = \"${TF_STATE_FILE_NAME}\"" >> $BACKEND_FILE_NAME
-          echo 'profile        = ""' >> $BACKEND_FILE_NAME
-          echo 'encrypt        = "true"' >> $BACKEND_FILE_NAME
-          echo "dynamodb_table = \"${DYNAMODB_TABLE_NAME}\"" >> $BACKEND_FILE_NAME
+          echo 'region         = "${{ inputs.aws-region }}"' > ${{ steps.tf.outputs.backend-file }}
+          echo "bucket         = \"${S3_BUCKET_NAME}\"" >> ${{ steps.tf.outputs.backend-file }}
+          echo "key            = \"${TF_STATE_FILE_NAME}\"" >> ${{ steps.tf.outputs.backend-file }}
+          echo 'profile        = ""' >> ${{ steps.tf.outputs.backend-file }}
+          echo 'encrypt        = "true"' >> ${{ steps.tf.outputs.backend-file }}
+          echo "dynamodb_table = \"${DYNAMODB_TABLE_NAME}\"" >> ${{ steps.tf.outputs.backend-file }}
+
+      - name: Copy local state to the remote
+        id: force-copy
+#        moving backend file back to support copy
+        run: |
+          git restore ${{ inputs.mock-backend-file-name }}
+          terraform init -force-copy -var-file="$VARS_FILE_NAME" -backend-config="${BACKEND_FILE_NAME}" -no-color
 
       - uses: stefanzweifel/git-auto-commit-action@v5
         with:
-          commit_message: Generated state for env - ${{inputs.environment}}
-          branch: ${{ env.BRANCH_NAME }}
+          commit_message: Generated state for env - ${{ inputs.environment }}
+          branch: ${{ (inputs.push-mode == 'pull-request' && env.BRANCH_NAME) || '' }}
           commit_options: '--no-verify --signoff'
           file_pattern: "*${{ env.BACKEND_FILE_NAME }} *${{ env.VARS_FILE_NAME }}"
           commit_user_name: ${{ github.actor }}
@@ -135,98 +159,114 @@ jobs:
           skip_fetch: true
           skip_checkout: true
           disable_globbing: true
-          create_branch: true
-
-      - name: Copy local state to the remote
-        id: force-copy
-#        moving backend file back to support copy
-        run: |
-          git reset --hard 
-          terraform init -force-copy -var-file="$VARS_FILE_NAME" -backend-config="${BACKEND_FILE_NAME}" -no-color
+          create_branch: ${{ inputs.push-mode == 'pull-request' }}
 
       - name: Create Pull Request
-        run: gh pr create -B main -H $BRANCH_NAME --title 'Merge generated credentials for ${{inputs.environment}} environment' --body 'Created by Github action, for environment - ${{inputs.environment}}'
+        if: ${{ inputs.push-mode == 'pull-request' }}
+        run: gh pr create -B main -H $BRANCH_NAME --title 'Merge generated credentials for ${{ inputs.environment }} environment' --body 'Created by Github action, for environment - ${{ inputs.environment }}'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Check needed destroy
         id: destroy
         if: failure()
+        env:
+          TF_VAR_force_destroy: true
+          TF_VAR_dynamo_db_table_name: ""
+          TF_VAR_s3_bucket_name: ""
+          TF_VAR_tf_state_file_name: ""
+
         run: |
-          rm backend.tf || 0
+          rm ${{ inputs.mock-backend-file-name }} || 0
           terraform init -force-copy
-          terraform apply -destroy -auto-approve -var-file="$VARS_FILE_NAME" -no-color
+          terraform apply -destroy -auto-approve -no-color 
           exit 1
 
 on:
   workflow_call:
     inputs:
-      awsAccessKeyId:
+      aws-access-key-id:
         description: "AWS Access Key ID"
         type: string
-        required: true
+        required: false
 
-      awsSecretAccessKey:
+      aws-secret-access-key:
         description: "AWS Secret Access Key"
         type: string
-        required: true
+        required: false
 
-      awsSessionToken:
+      aws-session-token:
         description: "AWS Session Token"
         type: string
-        required: true
+        required: false
 
-      awsRegion:
+      aws-region:
         description: "AWS Region"
         type: string
-        required: true
+        required: false
 
       environment:
         description: "Environment name (master, prod, dev, security, etc...)"
         type: string
         required: true
 
-      tfStateFileName:
+      tf-state-file-name:
         description: "Terraform file state name on a remote"
         type: string
         required: false
 
-      dynamoDbTableName:
+      dynamo-db-table-name:
         description: "DynamoDB table name"
         type: string
         required: false
 
-      s3BucketName:
+      s3-bucket-name:
         description: "S3 Bucket name"
         type: string
         required: false
 
-      varsFolderPath:
-        description: "Vars folder path for generated tfvars file"
+      mock-backend-file-name:
+        description: "Mock backend file name, required for external backend files in terraform name"
         type: string
-        required: false
-
-      backendFolderPath:
-        description: "Backends folder path for generated tfbackend file"
-        type: string
-        required: false
-
-      mockBackendFileName:
-        description: "Mock backend file name, required for for external backend file name"
-        type: string
+        default: "backend.tf"
         required: false
 
       organization:
-        description: "Repository owner organization (ex. acme for repo acme/example)"
+        description: "Repository owner organization"
         required: true
         type: string
 
-      repository:
-        description: "Repository name (ex. example for repo acme/example)"
+      project-name:
+        description: "For monorepo choose the appropriate name for project for poly repo us repository name)"
         required: true
         type: string
 
-      terraformFolder:
+      terraform-folder:
         description: "Root folder path for terraform files"
         type: string
         required: false
+
+      push-mode:
+        description: "Control whether to commit and push changes to current branch or create a pull request. Known values - (pull-request, same-branch)"
+        type: string
+        required: true
+        default: "same-branch"
+
+      role-name:
+        description: "Default role name to assume for the terraform state initialization"
+        type: string
+        required: false
+        default: "github"
+
+      tf-state-module-name:
+        description: "The name of tf state module in terraform files"
+        type: string
+        required: false
+        default: "terraform_state_backend"
+
+      oidc-module-name:
+        description: "The name of oidc module in terraform files"
+        type: string
+        required: false
+        default: "oidc_github"
+

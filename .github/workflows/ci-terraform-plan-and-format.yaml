@@ -82,7 +82,6 @@ jobs:
           aws-region: ${{ vars[steps.env.outputs.aws-region-key] }}
           role-to-assume: arn:aws:iam::${{ vars[steps.env.outputs.aws-account-id-key] }}:role/${{ inputs.role-name }}
 
-
       - name: terraform validate
         uses: dflook/terraform-validate@v1
         with:
