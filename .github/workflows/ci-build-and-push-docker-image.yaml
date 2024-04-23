@@ -1,0 +1,109 @@
+name: |-
+  CI - Build and Push Docker Image to ECR
+  
+  ### Usage 
+  
+  ```yaml
+  
+  ```
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: ${{ inputs.environment }}
+  cancel-in-progress: true
+
+jobs:
+  build_and_push_docker_image:
+    runs-on: ubuntu-latest
+    if: github.event.pull_request.merged == true || github.event_name == 'workflow_dispatch'
+
+    permissions:
+      id-token: write
+      contents: read
+
+    outputs:
+      image_tag: ${{ steps.build-publish.outputs.image_tag }}
+      full_image: ${{ steps.build-publish.outputs.full_image }}
+
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          ref: ${{ github.head_ref }}
+
+      - name: Get env information
+        id: env
+        uses: softkitit/github-actions-terraform/actions/environment-information@main
+        with:
+          environment: ${{ inputs.environment }}
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-region: ${{ vars[steps.env.outputs.aws-region-key] }}
+          role-to-assume: arn:aws:iam::${{ vars[steps.env.outputs.aws-account-id-key] }}:role/${{ inputs.role-name }}
+
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+        with:
+          registries: ${{ vars[inputs.deployment-account-id-key] }}
+
+      - name: Build, tag, and push image to Amazon ECR
+        id: build-publish
+        shell: bash
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          ECR_REPOSITORY: ${{ inputs.ecr-repository-name }}
+          IMAGE_TAG: ${{ inputs.image-tag }}
+        run: |
+          docker build ${{ inputs.docker-file-path }} -t "$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG"
+          docker push "$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG"
+          echo "IMAGE $IMAGE_TAG is pushed to $ECR_REGISTRY/$ECR_REPOSITORY"
+          echo "image_tag=$IMAGE_TAG" >> "$GITHUB_OUTPUT"
+          echo "full_image=$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG" >> "$GITHUB_OUTPUT"
+
+
+
+on:
+  workflow_call:
+
+    outputs:
+      image_tag: ${{ jobs.build_and_push_docker_image.outputs.image_tag }}
+      full_image_url: ${{ jobs.build_and_push_docker_image.outputs.full_image }}
+
+    inputs:
+      environment:
+        description: "Environment name (master, prod, dev, security, etc...)"
+        type: string
+        required: true
+
+      docker-file-path:
+        description: "Docker file path"
+        type: string
+        default: "."
+        required: false
+
+      role-name:
+        description: "AWS role name to assume for the terraform state initialization"
+        type: string
+        required: false
+        default: "github"
+
+      ecr-repository-name:
+        description: "ECR repository name"
+        type: string
+        required: true
+
+      image-tag:
+        description: "Docker image tag"
+        type: string
+        required: true
+
+      deployment-account-id-key:
+        description: "Deployment account ID key in github vars"
+        type: string
+        required: false
+        default: "DEPLOYMENT_AWS_ACCOUNT_ID"
