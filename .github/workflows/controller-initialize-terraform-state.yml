@@ -82,14 +82,14 @@ jobs:
           terraform-folder: ${{ inputs.terraform-folder }}
 
       - name: Configure AWS credentials through OIDC
-        if: ${{ !inputs.aws-secret-access-key }}
+        if: ${{ !inputs.aws-secret-access-key && !steps.tf.outputs.files-exist }}
         uses: aws-actions/configure-aws-credentials@v4
         with:
           aws-region: ${{ vars[steps.env.outputs.aws-region-key] }}
           role-to-assume: arn:aws:iam::${{ vars[steps.env.outputs.aws-account-id-key] }}:role/${{ inputs.role-name }}
 
       - name: Configure AWS Credentials through provided credentials
-        if: ${{ inputs.aws-secret-access-key }}
+        if: ${{ inputs.aws-secret-access-key && !steps.tf.outputs.files-exist }}
         uses: aws-actions/configure-aws-credentials@v4
         with:
           aws-region: ${{ inputs.aws-region }}
@@ -98,21 +98,25 @@ jobs:
           aws-session-token: ${{ inputs.aws-session-token }}
 
       - name: Get terraform version
+        if: ${{ !steps.tf.outputs.files-exist }}
         uses: dflook/terraform-version@v1
         id: tf-version
         with:
           path: ${{ steps.tf.outputs.root }}
 
       - uses: hashicorp/setup-terraform@v3
+        if: ${{ !steps.tf.outputs.files-exist }}
         with:
           terraform_version: ${{ steps.tf-version.outputs.terraform }}
           terraform_wrapper: false
 
       - name: Remove backend mock file, it's not needed for initialization stage and must be removed
+        if: ${{ !steps.tf.outputs.files-exist }}
         working-directory: ${{ steps.tf.outputs.root }}
         run: rm ${{ inputs.mock-backend-file-name }} || 0
 
       - name: Generate vars file
+        if: ${{ !steps.tf.outputs.files-exist }}
         run: | 
           echo 'environment = "${{inputs.environment}}"' > ${{ steps.tf.outputs.vars-file }} 
           echo 'aws_region = "${{inputs.aws-region}}"' >> ${{ steps.tf.outputs.vars-file }} 
@@ -123,14 +127,17 @@ jobs:
           echo "s3_bucket_name = \"${S3_BUCKET_NAME}\"" >> ${{ steps.tf.outputs.vars-file }}
 
       - name: Terraform Plan
+        if: ${{ !steps.tf.outputs.files-exist }}
         id: plan
         run: terraform plan -var-file="${{ steps.tf.outputs.vars-file }}" -no-color -target="module.${{ inputs.tf-state-module-name }}" -target="module.${{ inputs.oidc-module-name }}"
 
       - name: Terraform Apply
+        if: ${{ !steps.tf.outputs.files-exist }}
         id: apply
         run: terraform apply -auto-approve -var-file="${{ steps.tf.outputs.vars-file }}" -no-color -target="module.${{ inputs.tf-state-module-name }}" -target="module.${{ inputs.oidc-module-name }}"
 
       - name: Generate backend HCL file
+        if: ${{ !steps.tf.outputs.files-exist }}
         run: |
           echo 'region         = "${{ inputs.aws-region }}"' > ${{ steps.tf.outputs.backend-file }}
           echo "bucket         = \"${S3_BUCKET_NAME}\"" >> ${{ steps.tf.outputs.backend-file }}
@@ -141,12 +148,14 @@ jobs:
 
       - name: Copy local state to the remote
         id: force-copy
+        if: ${{ !steps.tf.outputs.files-exist }}
 #        moving backend file back to support copy
         run: |
           git restore ${{ inputs.mock-backend-file-name }}
           terraform init -force-copy -var-file="$VARS_FILE_NAME" -backend-config="${BACKEND_FILE_NAME}" -no-color
 
       - uses: stefanzweifel/git-auto-commit-action@v5
+        if: ${{ !steps.tf.outputs.files-exist }}
         with:
           commit_message: Generated state for env - ${{ inputs.environment }}
           branch: ${{ (inputs.push-mode == 'pull-request' && env.BRANCH_NAME) || '' }}
@@ -162,14 +171,14 @@ jobs:
           create_branch: ${{ inputs.push-mode == 'pull-request' }}
 
       - name: Create Pull Request
-        if: ${{ inputs.push-mode == 'pull-request' }}
+        if: ${{ inputs.push-mode == 'pull-request' && !steps.tf.outputs.files-exist }}
         run: gh pr create -B main -H $BRANCH_NAME --title 'Merge generated credentials for ${{ inputs.environment }} environment' --body 'Created by Github action, for environment - ${{ inputs.environment }}'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Check needed destroy
         id: destroy
-        if: failure()
+        if: failure() && ${{ !steps.tf.outputs.files-exist }}
         env:
           TF_VAR_force_destroy: true
           TF_VAR_dynamo_db_table_name: ""

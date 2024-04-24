@@ -99,7 +99,6 @@ jobs:
           echo "full_image=$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG" >> "$GITHUB_OUTPUT"
 
 
-
 on:
   workflow_call:
 
