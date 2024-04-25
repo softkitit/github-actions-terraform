@@ -121,7 +121,7 @@ jobs:
           echo 'environment = "${{inputs.environment}}"' > ${{ steps.tf.outputs.vars-file }} 
           echo 'aws_region = "${{inputs.aws-region}}"' >> ${{ steps.tf.outputs.vars-file }} 
           echo 'project_name = "${{inputs.project-name}}"' >> ${{ steps.tf.outputs.vars-file }} 
-          echo 'github_org_name = "${{inputs.organization}}"' >> ${{ steps.tf.outputs.vars-file }} 
+          echo 'org_name = "${{inputs.organization}}"' >> ${{ steps.tf.outputs.vars-file }} 
           echo "tf_state_file_name = \"${TF_STATE_FILE_NAME}\"" >> ${{ steps.tf.outputs.vars-file }} 
           echo "dynamo_db_table_name = \"${DYNAMODB_TABLE_NAME}\"" >> ${{ steps.tf.outputs.vars-file }}
           echo "s3_bucket_name = \"${S3_BUCKET_NAME}\"" >> ${{ steps.tf.outputs.vars-file }}
