@@ -82,7 +82,7 @@ jobs:
         id: login-ecr
         uses: aws-actions/amazon-ecr-login@v2
         with:
-          registries: ${{ vars[inputs.deployment-account-id-key] }}
+          registries: ${{ inputs.deployment-account-id }}
 
       - name: Build, tag, and push image to Amazon ECR
         id: build-publish
@@ -134,8 +134,7 @@ on:
         type: string
         required: true
 
-      deployment-account-id-key:
-        description: "Deployment account ID key in github vars"
+      deployment-account-id:
+        description: "Deployment account ID"
         type: string
         required: false
-        default: "DEPLOYMENT_AWS_ACCOUNT_ID"

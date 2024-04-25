@@ -1,0 +1,141 @@
+name: |-
+  CD - Deploy ECR docker image to ECS
+  
+  ### Usage 
+  
+  ```yaml
+    name: Deploy ECR docker image to ECS
+  
+    permissions:
+      id-token: write
+  
+    concurrency:
+      group: ${{ inputs.environment }}
+      cancel-in-progress: true
+  
+    on:
+      pull_request:
+        branches:
+          - main
+  
+      workflow_dispatch:
+        inputs:
+          environment:
+            description: "Environment to apply changes to"
+            required: true
+            type: choice
+            options:
+              - dev
+              - prod
+
+    jobs:
+      deploy_to_ecs:
+        env: 
+          ENVIRONMENT: $\{\{ inputs.environment || 'dev' \}\}
+          DOCKER_URL: format("{0}.dkr.ecr.{1}.amazonaws.com", vars.DEPLOYMENT_AWS_ACCOUNT_ID, vars.DEPLOYMENT_AWS_ACCOUNT_REGION)
+          REPO_NAME: $\{\{ github.event.repository.name \}\}
+          IMAGE_TAG: ${{ startsWith(github.ref_name, 'release/') && github.ref_name || format("{0}-{1}", github.run_id, github.run_attempt) }}
+  
+        uses: softkitit/github-actions-terraform/.github/workflows/cd-deploy-to-ecs.yaml@main
+        with:
+          environment: $\{\{ env.ENVIRONMENT \}\}
+          ecs-cluster-name: format("{0}-{1}", github.event.repository.owner.login, env.ENVIRONMENT)
+          ecs-service-name: format("{0}-{1}-{2}", github.event.repository.owner.login, env.ENVIRONMENT, github.event.repository.name)
+          ecr-repository-name: $\{\{ github.event.repository.name \}\}
+          image: format("{0}/{2}:{3}", env.DOCKER_URL, vars.DEPLOYMENT_AWS_ACCOUNT_REGION, github.event.repository.name, github.sha) 
+        secrets: inherit
+  ```
+
+permissions:
+  id-token: write
+
+concurrency:
+  group: ${{ inputs.environment }}
+  cancel-in-progress: true
+
+jobs:
+  deploy_new_version:
+    runs-on: ubuntu-latest
+
+    env:
+      TASK_DEFINITION_TMP_FILE_PATH: /tmp/task-definition.json
+
+    steps:
+      - name: Get env information
+        id: env
+        uses: softkitit/github-actions-terraform/actions/environment-information@main
+        with:
+          environment: ${{ inputs.environment }}
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-region: ${{ vars[steps.env.outputs.aws-region-key] }}
+          role-to-assume: arn:aws:iam::${{ vars[steps.env.outputs.aws-account-id-key] }}:role/${{ inputs.role-name }}
+
+      - name: Verify image exists
+        run: |
+            aws ecr describe-images --repository-name ${{ inputs.ecr-repository-name }} --image-ids imageTag=${{ inputs.image }} || exit 1
+
+      - name: Download task definition
+        id: current-task-definition
+        run: |
+          aws ecs describe-task-definition --task-definition ${{ inputs.ecs-service-name }} --query taskDefinition > ${{ env.TASK_DEFINITION_TMP_FILE_PATH }}
+
+      - name: Update image in task definition
+        id: render-app-container
+        uses: aws-actions/amazon-ecs-render-task-definition@v1
+        with:
+          task-definition: ${{ env.TASK_DEFINITION_TMP_FILE_PATH }}
+          container-name: ${{ inputs.container-name }}
+          image: ${{ inputs.image }}
+
+      - name: Deploy to Amazon ECS service
+        uses: aws-actions/amazon-ecs-deploy-task-definition@v1
+        with:
+          task-definition: ${{ steps.render-app-container.outputs.task-definition }}
+          service: ${{ inputs.service-name }}
+          cluster: ${{ inputs.cluster-name }}
+          wait-for-service-stability: ${{ inputs.wait-for-service-stability }}
+
+
+on:
+  workflow_call:
+    inputs:
+      environment:
+        description: "Environment name (master, prod, dev, security, etc...)"
+        type: string
+        required: true
+
+      role-name:
+        description: "AWS role name to assume for the terraform state initialization"
+        type: string
+        required: false
+        default: "github"
+
+      ecs-cluster-name:
+        description: "ECR cluster name"
+        type: string
+        required: true
+
+      ecs-service-name:
+        description: "ECR service name"
+        type: string
+        required: true
+
+      container-name:
+        description: "ECR container name"
+        type: string
+        required: true
+
+      image:
+         description: "Image to deploy"
+         type: string
+         required: true
+
+      wait-for-service-stability:
+         description: "Wait for service stability after deployment"
+         type: boolean
+         default: true
+         required: true
+
