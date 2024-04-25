@@ -14,7 +14,7 @@ name: |-
       id-token: write
   
     concurrency:
-      group: ${{ inputs.environment }}
+      group: $\{\{ inputs.environment \}\}
       cancel-in-progress: false
   
     on:
