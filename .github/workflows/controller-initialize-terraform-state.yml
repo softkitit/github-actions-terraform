@@ -246,7 +246,7 @@ on:
         type: string
 
       project-name:
-        description: "For monorepo choose the appropriate name for project for poly repo us repository name)"
+        description: "For monorepo choose the appropriate name for project for poly repo use repository name)"
         required: true
         type: string
 
