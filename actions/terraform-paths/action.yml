@@ -40,7 +40,7 @@ runs:
     - name: Set root folder environment variable
       shell: bash
       run: | 
-        echo "TERRAFORM_ROOT_PATH=${{ inputs.terraform-folder && format('{0}/', inputs.terraform-folder) || '.' }}" >> $GITHUB_ENV
+        echo "TERRAFORM_ROOT_PATH=${{ inputs.terraform-folder != '.' && inputs.terraform-folder && format('{0}/', inputs.terraform-folder) || '.' }}" >> $GITHUB_ENV
 
     - name: Set vars and backend files paths
       id: paths
