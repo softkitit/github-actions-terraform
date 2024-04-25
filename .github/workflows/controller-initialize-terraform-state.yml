@@ -54,7 +54,7 @@ concurrency:
 
 env:
   BRANCH_NAME: terraform-state/${{inputs.environment}}-${{ github.run_id }}-${{ github.run_attempt }}
-  TF_STATE_FILE_NAME: ${{ inputs.environment }}-${{ inputs.tf-state-file-name || '${{ inputs.project-name }}-terraform.tfstate' }}
+  TF_STATE_FILE_NAME: ${{ inputs.environment }}-${{ inputs.tf-state-file-name || "${{ inputs.project-name }}-terraform.tfstate" }}
   DYNAMODB_TABLE_NAME: ${{ inputs.dynamo-db-table-name || format('{0}-{1}-{2}', inputs.environment, inputs.organization, inputs.project-name) }}
   S3_BUCKET_NAME: ${{ inputs.s3-bucket-name || format('{0}-{1}-{2}', inputs.environment, inputs.organization, inputs.project-name) }}
 
