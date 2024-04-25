@@ -156,7 +156,7 @@ jobs:
 #        moving backend file back to support copy
         run: |
           git restore ${{ inputs.mock-backend-file-name }}
-          terraform init -force-copy -var-file="$VARS_FILE_NAME" -backend-config="${BACKEND_FILE_NAME}" -no-color
+          terraform init -force-copy -var-file="${{ steps.tf.outputs.vars-file }}"  -backend-config="${{ steps.tf.outputs.backend-file }}" -no-color
 
       - uses: stefanzweifel/git-auto-commit-action@v5
         if: ${{ steps.tf.outputs.files-exist == 'false' }}
@@ -164,7 +164,7 @@ jobs:
           commit_message: Generated state for env - ${{ inputs.environment }}
           branch: ${{ (inputs.push-mode == 'pull-request' && env.BRANCH_NAME) || '' }}
           commit_options: '--no-verify --signoff'
-          file_pattern: "*${{ env.BACKEND_FILE_NAME }} *${{ env.VARS_FILE_NAME }}"
+          file_pattern: "*${{ steps.tf.outputs.vars-file }} *${{ steps.tf.outputs.backend-file }}"
           commit_user_name: ${{ github.actor }}
           commit_user_email: ${{ github.actor_id }}+${{ github.actor }}@users.noreply.github.com
           status_options: '--untracked-files=no'
@@ -192,7 +192,7 @@ jobs:
         run: |
           rm ${{ inputs.mock-backend-file-name }} || 0
           terraform init -force-copy
-          terraform apply -destroy -auto-approve -no-color 
+          terraform apply -destroy -auto-approve -no-color -target="module.${{ inputs.tf-state-module-name }}" -target="module.${{ inputs.oidc-module-name }}" 
           exit 1
 
 on:
@@ -282,4 +282,10 @@ on:
         type: string
         required: false
         default: "oidc_github"
+
+      allow-destroy:
+        description: "Allow to destroy state in case of failure, it's safer to do not do it implicitly"
+        type: boolean
+        required: false
+        default: false
 
