@@ -50,7 +50,7 @@ jobs:
     runs-on: ubuntu-latest
     defaults:
       run:
-        working-directory: ${{ inputs.terraform-folder || '.' }}
+        working-directory: ${{ inputs.terraform-folder }}
     steps:
       - name: Checkout current branch
         uses: actions/checkout@v4
@@ -97,6 +97,7 @@ on:
         description: "Root folder path for terraform files"
         type: string
         required: false
+        default: "."
 
       lock-id:
         description: "Lock ID to be unlocked"
