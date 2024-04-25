@@ -15,12 +15,12 @@ name: |-
       init_state:
         uses: softkitit/github-actions-terraform/.github/workflows/controller-initialize-terraform-state.yml@main
         with:
-          project-name: $\{\{ github.event.repository.name \}\}
           organization: $\{\{ github.event.repository.owner.login \}\}
-          aws-region: eu-central-1
+          project-name: $\{\{ github.event.repository.name \}\}
           aws-access-key-id: $\{\{ inputs.aws-access-key-id \}\}
           aws-secret-access-key: $\{\{ inputs.aws-secret-access-key \}\}
           aws-session-token: $\{\{ inputs.aws-session-token \}\}
+          aws-region: eu-central-1
           terraform-folder: '.'
         secrets: inherit
   
@@ -258,7 +258,7 @@ on:
       push-mode:
         description: "Control whether to commit and push changes to current branch or create a pull request. Known values - (pull-request, same-branch)"
         type: string
-        required: true
+        required: false
         default: "same-branch"
 
       role-name:
