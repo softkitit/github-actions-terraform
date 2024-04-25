@@ -126,6 +126,10 @@ jobs:
           echo "dynamo_db_table_name = \"${DYNAMODB_TABLE_NAME}\"" >> ${{ steps.tf.outputs.vars-file }}
           echo "s3_bucket_name = \"${S3_BUCKET_NAME}\"" >> ${{ steps.tf.outputs.vars-file }}
 
+      - name: Terraform Init
+        if: ${{ steps.tf.outputs.files-exist == 'false' }}
+        run: terraform init -var-file="${{ steps.tf.outputs.vars-file }}" -no-color -target="module.${{ inputs.tf-state-module-name }}" -target="module.${{ inputs.oidc-module-name }}"
+
       - name: Terraform Plan
         if: ${{ steps.tf.outputs.files-exist == 'false' }}
         id: plan
