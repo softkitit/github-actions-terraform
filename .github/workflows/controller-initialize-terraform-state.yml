@@ -190,7 +190,7 @@ jobs:
           TF_VAR_tf_state_file_name: ""
 
         run: |
-          rm ${{ inputs.mock-backend-file-name }} || 0
+          rm ${{ inputs.mock-backend-file-name }} || true
           terraform init -force-copy
           terraform apply -destroy -auto-approve -no-color -target="module.${{ inputs.tf-state-module-name }}" -target="module.${{ inputs.oidc-module-name }}" 
           exit 1
