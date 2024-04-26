@@ -188,6 +188,10 @@ jobs:
           TF_VAR_dynamo_db_table_name: ""
           TF_VAR_s3_bucket_name: ""
           TF_VAR_tf_state_file_name: ""
+          TF_VAR_environment: ${{ inputs.environment }}
+          TF_VAR_aws_region: ${{ inputs.aws-region }}
+          TF_VAR_project_name: ${{ inputs.project-name }}
+          TF_VAR_org_name: ${{ inputs.organization }}
 
         run: |
           rm ${{ inputs.mock-backend-file-name }} || true
