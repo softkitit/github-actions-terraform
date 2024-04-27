@@ -16,7 +16,7 @@ name: |-
         uses: softkitit/github-actions-terraform/.github/workflows/controller-initialize-terraform-state.yml@main
         with:
           organization: $\{\{ github.event.repository.owner.login \}\}
-          project-name: $\{\{ github.event.repository.name \}\}
+          repository-name: $\{\{ github.event.repository.name \}\}
           aws-access-key-id: $\{\{ inputs.aws-access-key-id \}\}
           aws-secret-access-key: $\{\{ inputs.aws-secret-access-key \}\}
           aws-session-token: $\{\{ inputs.aws-session-token \}\}
@@ -54,9 +54,9 @@ concurrency:
 
 env:
   BRANCH_NAME: terraform-state/${{inputs.environment}}-${{ github.run_id }}-${{ github.run_attempt }}
-  TF_STATE_FILE_NAME: ${{ inputs.environment }}-${{ inputs.tf-state-file-name || format('{0}-terraform.tfstate', inputs.project-name) }}
-  DYNAMODB_TABLE_NAME: ${{ inputs.dynamo-db-table-name || format('{0}-{1}-{2}', inputs.environment, inputs.organization, inputs.project-name) }}
-  S3_BUCKET_NAME: ${{ inputs.s3-bucket-name || format('{0}-{1}-{2}', inputs.environment, inputs.organization, inputs.project-name) }}
+  TF_STATE_FILE_NAME: ${{ inputs.environment }}-${{ inputs.tf-state-file-name || format('{0}-terraform.tfstate', inputs.project-name || inputs.repository-name) }}
+  DYNAMODB_TABLE_NAME: ${{ inputs.dynamo-db-table-name || format('{0}-{1}-{2}', inputs.environment, inputs.organization, inputs.project-name || inputs.repository-name) }}
+  S3_BUCKET_NAME: ${{ inputs.s3-bucket-name || format('{0}-{1}-{2}', inputs.environment, inputs.organization, inputs.project-name || inputs.repository-name) }}
 
 jobs:
   init_state:
@@ -118,10 +118,11 @@ jobs:
       - name: Generate vars file
         if: ${{ steps.tf.outputs.files-exist == 'false' }}
         run: | 
-          echo 'environment = "${{inputs.environment}}"' > ${{ steps.tf.outputs.vars-file }} 
-          echo 'aws_region = "${{inputs.aws-region}}"' >> ${{ steps.tf.outputs.vars-file }} 
-          echo 'project_name = "${{inputs.project-name}}"' >> ${{ steps.tf.outputs.vars-file }} 
-          echo 'org_name = "${{inputs.organization}}"' >> ${{ steps.tf.outputs.vars-file }} 
+          echo 'environment = "${{ inputs.environment }}"' > ${{ steps.tf.outputs.vars-file }} 
+          echo 'aws_region = "${{ inputs.aws-region }}"' >> ${{ steps.tf.outputs.vars-file }} 
+          echo 'repository_name = "${{ inputs.repository-name }}"' >> ${{ steps.tf.outputs.vars-file }} 
+          echo 'project_name = "${{ inputs.project-name || inputs.repository-name }}"' >> ${{ steps.tf.outputs.vars-file }} 
+          echo 'org_name = "${{ inputs.organization }}"' >> ${{ steps.tf.outputs.vars-file }} 
           echo "tf_state_file_name = \"${TF_STATE_FILE_NAME}\"" >> ${{ steps.tf.outputs.vars-file }} 
           echo "dynamo_db_table_name = \"${DYNAMODB_TABLE_NAME}\"" >> ${{ steps.tf.outputs.vars-file }}
           echo "s3_bucket_name = \"${S3_BUCKET_NAME}\"" >> ${{ steps.tf.outputs.vars-file }}
@@ -190,7 +191,8 @@ jobs:
           TF_VAR_tf_state_file_name: ""
           TF_VAR_environment: ${{ inputs.environment }}
           TF_VAR_aws_region: ${{ inputs.aws-region }}
-          TF_VAR_project_name: ${{ inputs.project-name }}
+          TF_VAR_repository_name: ${{ inputs.repository-name }}
+          TF_VAR_project_name: ${{ inputs.project-name || inputs.repository-name }}
           TF_VAR_org_name: ${{ inputs.organization }}
 
         run: |
@@ -253,9 +255,14 @@ on:
         required: true
         type: string
 
+      repository-name:
+        description: "Git repository name, to understand where the particular resource is managed"
+        required: true
+        type: string
+
       project-name:
         description: "For monorepo choose the appropriate name for project for poly repo use repository name)"
-        required: true
+        required: false
         type: string
 
       terraform-folder:
