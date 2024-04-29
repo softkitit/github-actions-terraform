@@ -1,0 +1,76 @@
+name: |-
+  Controller - Define changed nx apps
+  
+  It helps to define changed nx apps to use in github matrix or iterate through them in parallel
+  
+  ### Usage 
+  
+  ```yaml
+    name: Define changed nx apps
+    jobs:
+      define_changed_apps:
+        id: define_changed_apps
+        uses: softkitit/github-actions-terraform/.github/workflows/controller-nx-define-changed-apps.yml@main
+      do_something: 
+        needs: [define_changed_apps]
+        strategy:
+          matrix:
+            app: ${{fromJson(needs.define_changed_apps.outputs.affected-projects)}}
+        runs-on: ubuntu-latest
+        steps: 
+          run: echo "Do something with ${{ matrix.app }}"
+  ```
+
+permissions:
+  contents: read
+
+
+jobs:
+  init_state:
+    name: Define changed nx apps
+    runs-on: ${{ inputs.runs-on }}
+    steps:
+      - name: Checkout current branch
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.head_ref }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: ${{ inputs.node-version-file }}
+
+      - name: Install dependencies
+        run: yarn install
+
+      - name: Get affected projects
+        id: get-affected-projects
+        run: echo "affected-projects=$(nx show projects --json --affected --type app --with-target ${{ inputs.filter-target }} --base ${{ inputs.base-name }}) >> $GITHUB_OUTPUT
+
+on:
+  workflow_call:
+    outputs:
+      affected-projects: ${{ steps.get-affected-projects.outputs.affected-projects }}
+    inputs:
+      runs-on:
+        description: "Job runs on OS"
+        type: string
+        required: false
+        default: "ubuntu-latest"
+
+      node-version-file:
+        description: "Node version file"
+        type: string
+        required: false
+        default: ".nvmrc"
+
+      base-name:
+        description: "It can be a branch name or tag name to compare changes with"
+        type: string
+        required: false
+        default: "main"
+
+      filter-target:
+        description: "Project target to pick from affected projects"
+        type: string
+        required: false
+        default: "build"
