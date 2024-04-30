@@ -35,7 +35,7 @@ name: |-
 
     jobs:
       plan_and_format:
-        uses: softkitit/github-actions-terraform/.github/workflows/ci-terraform-plan-and-format.yaml@main
+        uses: softkitit/github-actions-terraform/.github/workflows/ci-terraform-plan-and-format.yml@main
         with:
           environment: $\{\{ inputs.environment || 'dev' \}\}
           override-plan-comment: $\{\{ inputs.environment == 'dev' \}\}

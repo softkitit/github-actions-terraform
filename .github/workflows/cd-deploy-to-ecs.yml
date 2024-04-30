@@ -36,7 +36,7 @@ name: |-
           REPO_NAME: $\{\{ github.event.repository.name \}\}
           IMAGE_TAG: ${{ startsWith(github.ref_name, 'release/') && github.ref_name || format("{0}-{1}", github.run_id, github.run_attempt) }}
   
-        uses: softkitit/github-actions-terraform/.github/workflows/cd-deploy-to-ecs.yaml@main
+        uses: softkitit/github-actions-terraform/.github/workflows/cd-deploy-to-ecs.yml@main
         with:
           environment: $\{\{ env.ENVIRONMENT \}\}
           ecs-cluster-name: format("{0}-{1}", github.event.repository.owner.login, env.ENVIRONMENT)
