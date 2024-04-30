@@ -129,12 +129,12 @@ jobs:
 
       - name: Terraform Init
         if: ${{ steps.tf.outputs.files-exist == 'false' }}
-        run: terraform init -chdir=${{ steps.tf.outputs.root }} -var-file="${{ steps.tf.outputs.vars-file }}" -no-color -target="module.${{ inputs.tf-state-module-name }}" -target="module.${{ inputs.oidc-module-name }}"
+        run: terraform -chdir=${{ steps.tf.outputs.root }} init -var-file="${{ steps.tf.outputs.vars-file }}" -no-color -target="module.${{ inputs.tf-state-module-name }}" -target="module.${{ inputs.oidc-module-name }}"
 
       - name: Terraform Plan
         if: ${{ steps.tf.outputs.files-exist == 'false' }}
         id: plan
-        run: terraform plan -chdir=${{ steps.tf.outputs.root }} -var-file="${{ steps.tf.outputs.vars-file }}" -no-color -target="module.${{ inputs.tf-state-module-name }}" -target="module.${{ inputs.oidc-module-name }}"
+        run: terraform -chdir=${{ steps.tf.outputs.root }} plan -var-file="${{ steps.tf.outputs.vars-file }}" -no-color -target="module.${{ inputs.tf-state-module-name }}" -target="module.${{ inputs.oidc-module-name }}"
 
       - name: Terraform Apply
         if: ${{ steps.tf.outputs.files-exist == 'false' }}
