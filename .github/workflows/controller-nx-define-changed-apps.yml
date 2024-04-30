@@ -44,7 +44,7 @@ jobs:
 
       - name: Get affected projects
         id: get-affected-projects
-        run: echo "affected-projects=$(nx show projects --json --affected --type app --with-target ${{ inputs.filter-target }} --base ${{ inputs.base-name }}) >> $GITHUB_OUTPUT
+        run: echo "affected-projects=$(npx nx show projects --json --affected --type app --with-target ${{ inputs.filter-target }} --base ${{ inputs.base-name }}) >> $GITHUB_OUTPUT
 
 on:
   workflow_call:
