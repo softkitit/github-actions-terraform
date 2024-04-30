@@ -119,7 +119,7 @@ jobs:
         if: ${{ steps.tf.outputs.files-exist == 'false' }}
         run: | 
           echo 'environment = "${{ inputs.environment }}"' > ${{ steps.tf.outputs.vars-file }} 
-          echo 'aws_region = "${{ inputs.aws-region }}"' >> ${{ steps.tf.outputs.vars-file }} 
+          echo 'aws_region = "${{ inputs.aws-region || vars[steps.env.outputs.aws-region-key] }}"' >> ${{ steps.tf.outputs.vars-file }} 
           echo 'repository_name = "${{ inputs.repository-name }}"' >> ${{ steps.tf.outputs.vars-file }} 
           echo 'project_name = "${{ inputs.project-name || inputs.repository-name }}"' >> ${{ steps.tf.outputs.vars-file }} 
           echo 'org_name = "${{ inputs.organization }}"' >> ${{ steps.tf.outputs.vars-file }} 
