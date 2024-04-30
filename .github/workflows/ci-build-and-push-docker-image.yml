@@ -52,8 +52,8 @@ jobs:
       contents: read
 
     outputs:
-      image_tag: ${{ steps.build-publish.outputs.image-tag }}
-      full_image: ${{ steps.build-publish.outputs.full-image }}
+      image-tag: ${{ steps.build-publish.outputs.image-tag }}
+      full-image: ${{ steps.build-publish.outputs.full-image }}
 
     steps:
       - uses: actions/checkout@v4
@@ -103,8 +103,8 @@ on:
   workflow_call:
 
     outputs:
-      image-tag: ${{ jobs.build-and-push-docker-image.outputs.image_tag }}
-      full-image-url: ${{ jobs.build-and-push-docker-image.outputs.full_image }}
+      image-tag: ${{ jobs.build-and-push-docker-image.outputs.image-tag }}
+      full-image-url: ${{ jobs.build-and-push-docker-image.outputs.full-image }}
 
     inputs:
       environment:
