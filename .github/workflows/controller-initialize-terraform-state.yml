@@ -129,22 +129,22 @@ jobs:
 
       - name: Terraform Init
         if: ${{ steps.tf.outputs.files-exist == 'false' }}
-        run: terraform init -var-file="${{ steps.tf.outputs.vars-file }}" -no-color -target="module.${{ inputs.tf-state-module-name }}" -target="module.${{ inputs.oidc-module-name }}"
+        run: terraform init -chdir=${{ steps.tf.outputs.root }} -var-file="${{ steps.tf.outputs.vars-file }}" -no-color -target="module.${{ inputs.tf-state-module-name }}" -target="module.${{ inputs.oidc-module-name }}"
 
       - name: Terraform Plan
         if: ${{ steps.tf.outputs.files-exist == 'false' }}
         id: plan
-        run: terraform plan -var-file="${{ steps.tf.outputs.vars-file }}" -no-color -target="module.${{ inputs.tf-state-module-name }}" -target="module.${{ inputs.oidc-module-name }}"
+        run: terraform plan -chdir=${{ steps.tf.outputs.root }} -var-file="${{ steps.tf.outputs.vars-file }}" -no-color -target="module.${{ inputs.tf-state-module-name }}" -target="module.${{ inputs.oidc-module-name }}"
 
       - name: Terraform Apply
         if: ${{ steps.tf.outputs.files-exist == 'false' }}
         id: apply
-        run: terraform apply -auto-approve -var-file="${{ steps.tf.outputs.vars-file }}" -no-color -target="module.${{ inputs.tf-state-module-name }}" -target="module.${{ inputs.oidc-module-name }}"
+        run: terraform apply -chdir=${{ steps.tf.outputs.root }} -auto-approve -var-file="${{ steps.tf.outputs.vars-file }}" -no-color -target="module.${{ inputs.tf-state-module-name }}" -target="module.${{ inputs.oidc-module-name }}"
 
       - name: Generate backend HCL file
         if: ${{ steps.tf.outputs.files-exist == 'false' }}
         run: |
-          echo 'region         = "${{ inputs.aws-region }}"' > ${{ steps.tf.outputs.backend-file }}
+          echo 'region         = "${{ inputs.aws-region || vars[steps.env.outputs.aws-region-key] }}"' > ${{ steps.tf.outputs.backend-file }}
           echo "bucket         = \"${S3_BUCKET_NAME}\"" >> ${{ steps.tf.outputs.backend-file }}
           echo "key            = \"${TF_STATE_FILE_NAME}\"" >> ${{ steps.tf.outputs.backend-file }}
           echo 'profile        = ""' >> ${{ steps.tf.outputs.backend-file }}
@@ -154,10 +154,9 @@ jobs:
       - name: Copy local state to the remote
         id: force-copy
         if: ${{ steps.tf.outputs.files-exist == 'false' }}
-#        moving backend file back to support copy
         run: |
           git restore ${{ inputs.mock-backend-file-name }}
-          terraform init -force-copy -var-file="${{ steps.tf.outputs.vars-file }}"  -backend-config="${{ steps.tf.outputs.backend-file }}" -no-color
+          terraform init -chdir=${{ steps.tf.outputs.root }} -force-copy -var-file="${{ steps.tf.outputs.vars-file }}"  -backend-config="${{ steps.tf.outputs.backend-file }}" -no-color
 
       - uses: stefanzweifel/git-auto-commit-action@v5
         if: ${{ steps.tf.outputs.files-exist == 'false' }}
@@ -197,8 +196,8 @@ jobs:
 
         run: |
           rm ${{ inputs.mock-backend-file-name }} || true
-          terraform init -force-copy
-          terraform apply -destroy -auto-approve -no-color -target="module.${{ inputs.tf-state-module-name }}" -target="module.${{ inputs.oidc-module-name }}" 
+          terraform init -chdir=${{ steps.tf.outputs.root }} -force-copy
+          terraform apply -chdir=${{ steps.tf.outputs.root }} -destroy -auto-approve -no-color -target="module.${{ inputs.tf-state-module-name }}" -target="module.${{ inputs.oidc-module-name }}" 
           exit 1
 
 on:
