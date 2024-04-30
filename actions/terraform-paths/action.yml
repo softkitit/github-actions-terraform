@@ -30,6 +30,15 @@ outputs:
   backend-file:
     value: ${{ steps.paths.outputs.backend-file }}
     description: "Backend file path"
+
+  vars-file-relative-path:
+    value: ${{ steps.paths.outputs.vars-file-relative-path }}
+    description: "Vars file path relative to the root folder"
+
+  backend-file-relative-path:
+    value: ${{ steps.paths.outputs.backend-file-relative-path }}
+    description: "Backend file path relative to the root folder"
+
   files-exist:
     value: ${{ steps.check_files.outputs.files_exists }}
     description: "Indicate if backend and vars file exists in the repo"
@@ -47,7 +56,9 @@ runs:
       shell: bash
       run: |
         echo "vars-file=${{ env.TERRAFORM_ROOT_PATH != '.' && env.TERRAFORM_ROOT_PATH || '' }}${{ inputs.vars-folder-name }}/${{ inputs.environment }}.tfvars" >> $GITHUB_OUTPUT
+        echo "vars-file-relative-path=${{ inputs.vars-folder-name }}/${{ inputs.environment }}.tfvars" >> $GITHUB_OUTPUT 
         echo "backend-file=${{ env.TERRAFORM_ROOT_PATH != '.' && env.TERRAFORM_ROOT_PATH || '' }}${{ inputs.backend-folder-name }}/${{ inputs.environment }}.s3.tfbackend" >> $GITHUB_OUTPUT
+        echo "backend-file-relative-path=${{ inputs.backend-folder-name }}/${{ inputs.environment }}.s3.tfbackend" >> $GITHUB_OUTPUT 
         echo "root=${{ env.TERRAFORM_ROOT_PATH }}" >> $GITHUB_OUTPUT
 
     - name: Check file existence

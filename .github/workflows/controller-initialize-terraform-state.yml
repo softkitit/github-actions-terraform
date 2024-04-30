@@ -129,17 +129,20 @@ jobs:
 
       - name: Terraform Init
         if: ${{ steps.tf.outputs.files-exist == 'false' }}
-        run: terraform -chdir=${{ steps.tf.outputs.root }} init -var-file="${{ steps.tf.outputs.vars-file }}" -no-color -target="module.${{ inputs.tf-state-module-name }}" -target="module.${{ inputs.oidc-module-name }}"
+        working-directory: ${{ steps.tf.outputs.root }}
+        run: terraform init -var-file="${{ steps.tf.outputs.vars-file-relative-path }}" -no-color -target="module.${{ inputs.tf-state-module-name }}" -target="module.${{ inputs.oidc-module-name }}"
 
       - name: Terraform Plan
         if: ${{ steps.tf.outputs.files-exist == 'false' }}
+        working-directory: ${{ steps.tf.outputs.root }}
         id: plan
-        run: terraform -chdir=${{ steps.tf.outputs.root }} plan -var-file="${{ steps.tf.outputs.vars-file }}" -no-color -target="module.${{ inputs.tf-state-module-name }}" -target="module.${{ inputs.oidc-module-name }}"
+        run: terraform plan -var-file="${{ steps.tf.outputs.vars-file-relative-path }}" -no-color -target="module.${{ inputs.tf-state-module-name }}" -target="module.${{ inputs.oidc-module-name }}"
 
       - name: Terraform Apply
         if: ${{ steps.tf.outputs.files-exist == 'false' }}
+        working-directory: ${{ steps.tf.outputs.root }}
         id: apply
-        run: terraform apply -chdir=${{ steps.tf.outputs.root }} -auto-approve -var-file="${{ steps.tf.outputs.vars-file }}" -no-color -target="module.${{ inputs.tf-state-module-name }}" -target="module.${{ inputs.oidc-module-name }}"
+        run: terraform apply -auto-approve -var-file="${{ steps.tf.outputs.vars-file-relative-path }}" -no-color -target="module.${{ inputs.tf-state-module-name }}" -target="module.${{ inputs.oidc-module-name }}"
 
       - name: Generate backend HCL file
         if: ${{ steps.tf.outputs.files-exist == 'false' }}
@@ -154,9 +157,10 @@ jobs:
       - name: Copy local state to the remote
         id: force-copy
         if: ${{ steps.tf.outputs.files-exist == 'false' }}
+        working-directory: ${{ steps.tf.outputs.root }}
         run: |
           git restore ${{ inputs.mock-backend-file-name }}
-          terraform init -chdir=${{ steps.tf.outputs.root }} -force-copy -var-file="${{ steps.tf.outputs.vars-file }}"  -backend-config="${{ steps.tf.outputs.backend-file }}" -no-color
+          terraform init -force-copy -var-file="${{ steps.tf.outputs.vars-file-relative-path }}"  -backend-config="${{ steps.tf.outputs.backend-file-relative-path }}" -no-color
 
       - uses: stefanzweifel/git-auto-commit-action@v5
         if: ${{ steps.tf.outputs.files-exist == 'false' }}
@@ -182,6 +186,7 @@ jobs:
 
       - name: Check needed destroy
         id: destroy
+        working-directory: ${{ steps.tf.outputs.root }}
         if: steps.tf.outputs.files-exist == 'false' && failure()
         env:
           TF_VAR_force_destroy: true
@@ -196,8 +201,8 @@ jobs:
 
         run: |
           rm ${{ inputs.mock-backend-file-name }} || true
-          terraform init -chdir=${{ steps.tf.outputs.root }} -force-copy
-          terraform apply -chdir=${{ steps.tf.outputs.root }} -destroy -auto-approve -no-color -target="module.${{ inputs.tf-state-module-name }}" -target="module.${{ inputs.oidc-module-name }}" 
+          terraform init -force-copy
+          terraform apply -destroy -auto-approve -no-color -target="module.${{ inputs.tf-state-module-name }}" -target="module.${{ inputs.oidc-module-name }}" 
           exit 1
 
 on:
