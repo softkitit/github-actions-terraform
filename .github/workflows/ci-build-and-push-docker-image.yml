@@ -116,7 +116,7 @@ on:
       docker-file-path:
         description: "Docker file path"
         type: string
-        default: "."
+        default: "Dockerfile"
         required: false
 
       role-name:
