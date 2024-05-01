@@ -66,11 +66,10 @@ jobs:
         with:
           name: ${{ inputs.additional-artifact }}
 
-      - name: Debug artifacts
+      - name: Unwrap additional artifact
+        if: inputs.additional-artifact && inputs.unwrap-artifact
         run: |
-          pwd
-          ls -la
-          ls -la $GITHUB_WORKSPACE
+          mv ${{ inputs.additional-artifact }}/* .
 
       - name: Get env information
         id: env
@@ -150,3 +149,9 @@ on:
         description: "Additional artifact to be downloaded for building a docker image"
         type: string
         required: false
+
+      unwrap-artifact:
+        description: "Indicates whether to unwrap the downloaded artifact or not"
+        type: boolean
+        required: false
+        default: false
