@@ -66,13 +66,6 @@ jobs:
         with:
           name: ${{ inputs.additional-artifact }}
 
-      - name: Unwrap additional artifact
-        if: inputs.additional-artifact && inputs.unwrap-artifact
-        run: |
-          pwd
-          ls -lah
-          mv ${{ inputs.additional-artifact }}/* .
-
       - name: Get env information
         id: env
         uses: softkitit/github-actions-terraform/actions/environment-information@main
@@ -151,9 +144,3 @@ on:
         description: "Additional artifact to be downloaded for building a docker image"
         type: string
         required: false
-
-      unwrap-artifact:
-        description: "Indicates whether to unwrap the downloaded artifact or not"
-        type: boolean
-        required: false
-        default: false
