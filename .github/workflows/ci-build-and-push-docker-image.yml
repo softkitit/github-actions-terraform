@@ -1,40 +1,4 @@
-name: |-
-  CI - Build and Push Docker Image to ECR
-  
-  ### Usage 
-  
-  ```yaml
-   name: Build and push docker image
-  
-    permissions:
-      contents: read
-      id-token: write
-  
-    on:
-      pull_request:
-        branches:
-          - main
-  
-      workflow_dispatch:
-        inputs:
-          environment:
-            description: "Environment to apply changes to"
-            required: true
-            type: choice
-            options:
-              - dev
-              - prod
-
-    jobs:
-      build-and-push-image:
-        uses: softkitit/github-actions-terraform/.github/workflows/ci-build-and-push-docker-image.yml@main
-        with:
-          environment: $\{\{ inputs.environment || 'dev' \}\}
-          ecr-repository-name: $\{\{ github.event.repository.name \}\}
-          image-tag: $\{\{ format("{0}-{1}", github.run_id, github.run_attempt) \}\}
-  
-        secrets: inherit
-  ```
+name: CI - Build and Push Docker Image to ECR
 
 permissions:
   contents: read
