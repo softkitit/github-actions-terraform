@@ -68,6 +68,7 @@ jobs:
 
       - name: Debug artifacts
         run: |
+          pwd
           ls -la
           ls -la $GITHUB_WORKSPACE
 
