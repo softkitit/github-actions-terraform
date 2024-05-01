@@ -69,6 +69,8 @@ jobs:
       - name: Unwrap additional artifact
         if: inputs.additional-artifact && inputs.unwrap-artifact
         run: |
+          pwd
+          ls -lah
           mv ${{ inputs.additional-artifact }}/* .
 
       - name: Get env information
