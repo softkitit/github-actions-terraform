@@ -66,6 +66,11 @@ jobs:
         with:
           name: ${{ inputs.additional-artifact }}
 
+      - name: Debug artifacts
+        run: |
+          ls -la
+          ls -la $GITHUB_WORKSPACE
+
       - name: Get env information
         id: env
         uses: softkitit/github-actions-terraform/actions/environment-information@main
