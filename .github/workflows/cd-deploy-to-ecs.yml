@@ -71,7 +71,7 @@ jobs:
 
       - name: Verify image exists
         run: |
-            aws ecr describe-images --repository-name ${{ inputs.ecr-repository-name }} --image-ids imageTag=${{ inputs.image-tag }} || exit 1
+            aws ecr describe-images --registry-id ${{ inputs.ecr-repository-account-id }} --repository-name ${{ inputs.ecr-repository-name }} --image-ids imageTag=${{ inputs.image-tag }} || exit 1
 
       - name: Download task definition
         id: current-task-definition
@@ -136,6 +136,11 @@ on:
 
       image:
          description: "Image to deploy, full URL with tag"
+         type: string
+         required: true
+
+      ecr-repository-account-id:
+         description: "Account id where ECR repository is located"
          type: string
          required: true
 
