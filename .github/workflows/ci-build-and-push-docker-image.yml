@@ -31,9 +31,9 @@ name: |-
         with:
           environment: $\{\{ inputs.environment || 'dev' \}\}
           ecr-repository-name: $\{\{ github.event.repository.name \}\}
-          image-tag: $\{\{ startsWith(github.ref_name, 'release/') && github.ref_name || format("{0}-{1}", github.run_id, github.run_attempt) \}\}
-        secrets: inherit
+          image-tag: $\{\{ format("{0}-{1}", github.run_id, github.run_attempt) \}\}
   
+        secrets: inherit
   ```
 
 permissions:
@@ -42,7 +42,7 @@ permissions:
 
 concurrency:
   group: ${{ inputs.environment }}
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 jobs:
   build-and-push-docker-image:
@@ -95,16 +95,18 @@ jobs:
           docker build ${{ inputs.docker-file-path }} -t "$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG"
           docker push "$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG"
           echo "IMAGE $IMAGE_TAG is pushed to $ECR_REGISTRY/$ECR_REPOSITORY"
-          echo "image-tag=$IMAGE_TAG" >> "$GITHUB_OUTPUT"
-          echo "full-image=$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG" >> "$GITHUB_OUTPUT"
-
+          echo "image-tag=$IMAGE_TAG" >> $GITHUB_OUTPUT
+          echo "full-image=$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG" >> $GITHUB_OUTPUT
 
 on:
   workflow_call:
-
     outputs:
-      image-tag: ${{ jobs.build-and-push-docker-image.outputs.image-tag }}
-      full-image-url: ${{ jobs.build-and-push-docker-image.outputs.full-image }}
+      image-tag:
+        description: "Docker image tag"
+        value: ${{ jobs.build-and-push-docker-image.outputs.image-tag }}
+      full-image-url:
+        description: "Full image URL"
+        value: ${{ jobs.build-and-push-docker-image.outputs.full-image }}
 
     inputs:
       environment:
