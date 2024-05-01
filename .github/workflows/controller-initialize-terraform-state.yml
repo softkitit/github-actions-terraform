@@ -275,7 +275,7 @@ on:
         required: false
 
       push-mode:
-        description: "Control whether to commit and push changes to current branch or create a pull request. Known values - (pull-request, same-branch)"
+        description: "Control whether to commit and push changes to current branch or create a pull request. Available values - (pull-request, same-branch)"
         type: string
         required: false
         default: "same-branch"
