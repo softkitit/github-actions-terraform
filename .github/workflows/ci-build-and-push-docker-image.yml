@@ -87,7 +87,7 @@ jobs:
       - name: Verify image exists
         id: verify-image-exists
         run: |
-          echo "exists=$(aws ecr describe-images --registry-id ${{ inputs.ecr-repository-account-id }} \ 
+          echo "exists=$(aws ecr describe-images --registry-id ${{ inputs.deployment-account-id }} \ 
           --repository-name ${{ inputs.ecr-repository-name }} \ 
           --image-ids imageTag=${{ inputs.image-tag }} && 'true' || 'false')" >> $GITHUB_OUTPUT
 
