@@ -45,7 +45,7 @@ env:
   TERRAFORM_ROOT: ${{ inputs.terraform-folder && format('{0}/', inputs.terraform-folder) || '' }}
 
 concurrency:
-  group: ${{ inputs.environment }}
+  group: ${{ github.workflow }}-${{ inputs.environment }}
   cancel-in-progress: false
 
 permissions:
