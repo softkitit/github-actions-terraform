@@ -84,28 +84,36 @@ jobs:
         with:
           registries: ${{ inputs.deployment-account-id }}
 
-      - name: Build, tag, and push image to Amazon ECR
-        id: build-publish
-        env:
-          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
-          ECR_REPOSITORY: ${{ inputs.ecr-repository-name }}
-          IMAGE_TAG: ${{ inputs.image-tag }}
+      - name: Verify image exists
+        id: verify-image-exists
         run: |
-          docker build -f ${{ inputs.docker-file-path }} -t "$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG" .
-          docker push "$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG"
-          echo "IMAGE $IMAGE_TAG is pushed to $ECR_REGISTRY/$ECR_REPOSITORY"
-          echo "image-tag=$IMAGE_TAG" >> $GITHUB_OUTPUT
-          echo "full-image=$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG" >> $GITHUB_OUTPUT
+          echo "exists=$(aws ecr describe-images --registry-id ${{ inputs.ecr-repository-account-id }} \ 
+          --repository-name ${{ inputs.ecr-repository-name }} \ 
+          --image-ids imageTag=${{ inputs.image-tag }} && 'true' || 'false')" >> $GITHUB_OUTPUT
+
+      - name: Define image tag and full url
+        id: image-info
+        run: |
+          echo "image-tag=${{ inputs.image-tag }}" >> $GITHUB_OUTPUT
+          echo "full-image=${{ steps.login-ecr.outputs.registry }}/${{ inputs.ecr-repository-name }}:${{ inputs.image-tag }}" >> $GITHUB_OUTPUT
+
+      - name: Build, tag, and push image
+        id: build-publish
+        if: steps.verify-image-exists.outputs.exists == 'false'
+        run: |
+          docker build -f ${{ inputs.docker-file-path }} -t "${{ steps.image-info.outputs.full-image }}" .
+          docker push "${{ steps.image-info.outputs.full-image }}"
+          echo "Image tag - ${{ steps.image-info.outputs.image-tag }} is pushed to ${{ steps.image-info.outputs.full-image }}"
 
 on:
   workflow_call:
     outputs:
       image-tag:
         description: "Docker image tag"
-        value: ${{ jobs.build-and-push-docker-image.outputs.image-tag }}
+        value: ${{ jobs.image-info.outputs.image-tag }}
       full-image-url:
         description: "Full image URL"
-        value: ${{ jobs.build-and-push-docker-image.outputs.full-image }}
+        value: ${{ jobs.image-info.outputs.full-image }}
 
     inputs:
       environment:
