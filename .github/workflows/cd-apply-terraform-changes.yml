@@ -106,7 +106,7 @@ jobs:
         if: ${{ steps.first_try.outputs.failure-reason == 'apply-failed' }}
         env:
           # erase github token to prevent it to being explicitly used in tf plan github provider
-          GITHUB_TOKEN: ""
+          GITHUB_TOKEN: ''
         with:
           path: ${{ steps.tf.outputs.root }}
           backend_config_file: ${{ steps.tf.outputs.backend-file }}
