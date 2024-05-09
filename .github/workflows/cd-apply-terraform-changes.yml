@@ -93,7 +93,8 @@ jobs:
         id: first_try
         env:
           # erase github token to prevent it to being explicitly used in tf plan github provider
-          GITHUB_TOKEN: ""
+          GITHUB_TOKEN: ''
+          TERRAFORM_ACTIONS_GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           path: ${{ steps.tf.outputs.root }}
           backend_config_file: ${{ steps.tf.outputs.backend-file }}
@@ -103,6 +104,10 @@ jobs:
 
       - name: Retry failed apply
         uses: dflook/terraform-apply@v1
+        env:
+          # erase github token to prevent it to being explicitly used in tf plan github provider
+          GITHUB_TOKEN: ''
+          TERRAFORM_ACTIONS_GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         if: ${{ steps.first_try.outputs.failure-reason == 'apply-failed' }}
         with:
           path: ${{ steps.tf.outputs.root }}

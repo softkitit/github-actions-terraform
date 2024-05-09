@@ -127,6 +127,9 @@ jobs:
       - name: terraform plan
         uses: dflook/terraform-plan@v1
         env:
+          # erase github token to prevent it to being explicitly used in tf plan github provider
+          GITHUB_TOKEN: ''
+          TERRAFORM_ACTIONS_GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TF_PLAN_COLLAPSE_LENGTH: 30
         with:
           path: ${{ steps.tf.outputs.root }}

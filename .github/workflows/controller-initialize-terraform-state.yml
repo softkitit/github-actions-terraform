@@ -135,12 +135,16 @@ jobs:
       - name: Terraform Plan
         if: ${{ steps.tf.outputs.files-exist == 'false' }}
         working-directory: ${{ steps.tf.outputs.root }}
+        env:
+          GITHUB_TOKEN: ''
         id: plan
         run: terraform plan -var-file="${{ steps.tf.outputs.vars-file-relative-path }}" -no-color -target="module.${{ inputs.tf-state-module-name }}" -target="module.${{ inputs.oidc-module-name }}"
 
       - name: Terraform Apply
         if: ${{ steps.tf.outputs.files-exist == 'false' }}
         working-directory: ${{ steps.tf.outputs.root }}
+        env:
+          GITHUB_TOKEN: ''
         id: apply
         run: terraform apply -auto-approve -var-file="${{ steps.tf.outputs.vars-file-relative-path }}" -no-color -target="module.${{ inputs.tf-state-module-name }}" -target="module.${{ inputs.oidc-module-name }}"
 
@@ -198,6 +202,7 @@ jobs:
           TF_VAR_repository_name: ${{ inputs.repository-name }}
           TF_VAR_project_name: ${{ inputs.project-name || inputs.repository-name }}
           TF_VAR_org_name: ${{ inputs.organization }}
+          GITHUB_TOKEN: ''
 
         run: |
           rm ${{ inputs.mock-backend-file-name }} || true
