@@ -90,8 +90,8 @@ jobs:
         uses: aws-actions/amazon-ecs-deploy-task-definition@v1
         with:
           task-definition: ${{ steps.render-app-container.outputs.task-definition }}
-          service: ${{ inputs.service-name }}
-          cluster: ${{ inputs.cluster-name }}
+          service: ${{ inputs.ecs-service-name }}
+          cluster: ${{ inputs.ecs-cluster-name }}
           wait-for-service-stability: ${{ inputs.wait-for-service-stability }}
 
 
