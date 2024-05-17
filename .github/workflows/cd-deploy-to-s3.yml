@@ -29,8 +29,8 @@ name: |-
       uses: softkitit/github-actions-terraform/.github/workflows/cd-deploy-to-s3.yml@main
         with:
           environment: $\{\{ inputs.environment || 'dev' \}\}
-          s3-bucket-name: ${{ github.event.repository.owner.login }}-${{ inputs.environment || github.event.client_payload.environment }}-${{ github.event.repository.name }}-origin
-          cloudfront-origin-name: ${{ github.event.repository.owner.login }}-${{ inputs.environment || github.event.client_payload.environment }}-${{ github.event.repository.name }}
+          s3-bucket-name: $\{\{ github.event.repository.owner.login \}\}-$\{\{ inputs.environment || github.event.client_payload.environment \}\}-$\{\{ github.event.repository.name \}\}-origin
+          cloudfront-origin-name: $\{\{ github.event.repository.owner.login \}\}-$\{\{ inputs.environment || github.event.client_payload.environment \}\}-$\{\{ github.event.repository.name \}\}
           website-content: build
         secrets: inherit
   
