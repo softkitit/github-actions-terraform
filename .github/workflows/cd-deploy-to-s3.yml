@@ -1,0 +1,117 @@
+name: |-
+  CD - Deploy to S3
+  
+  ### Usage 
+  
+  ```yaml
+    name: Deploy to S3
+  
+    permissions:
+      id-token: write
+  
+    on:
+      pull_request:
+        branches:
+          - main
+  
+      workflow_dispatch:
+        inputs:
+          environment:
+            description: "Environment to apply changes to"
+            required: true
+            type: choice
+            options:
+              - dev
+              - prod
+
+    jobs:
+      deploy_to_s3:
+      uses: softkitit/github-actions-terraform/.github/workflows/cd-deploy-to-s3.yml@main
+        with:
+          environment: $\{\{ inputs.environment || 'dev' \}\}
+          s3-bucket-name: ${{ github.event.repository.owner.login }}-${{ inputs.environment || github.event.client_payload.environment }}-${{ github.event.repository.name }}-origin
+          cloudfront-origin-name: ${{ github.event.repository.owner.login }}-${{ inputs.environment || github.event.client_payload.environment }}-${{ github.event.repository.name }}
+          website-content: build
+        secrets: inherit
+  
+  
+  ```
+
+permissions:
+  id-token: write
+
+concurrency:
+  group: ${{ github.workflow }}-${{ inputs.environment }}
+  cancel-in-progress: false
+
+jobs:
+  deploy_new_version:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Get env information
+        id: env
+        uses: softkitit/github-actions-terraform/actions/environment-information@main
+        with:
+          environment: ${{ inputs.environment }}
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-region: ${{ vars[steps.env.outputs.aws-region-key] }}
+          role-to-assume: arn:aws:iam::${{ vars[steps.env.outputs.aws-account-id-key] }}:role/${{ inputs.role-name }}
+
+      - name: Download website build
+        if: inputs.additional-artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ inputs.website-content }}
+
+      - name: Retrieve cloudfront distribution id
+        if: inputs.cloudfront-origin-name
+        id: cloudfront
+        run: |
+          echo id=$(aws cloudfront list-distributions --query "DistributionList.Items[*].{id:Id,origin:Origins.Items[*].Id}[?contains(origin, '${{ inputs.cloudfront-origin-name }}')].id" --output text) >> $GITHUB_OUTPUT
+
+      - name: Upload build to S3
+        run:
+          |
+          aws s3 sync . s3://${{ inputs.s3-bucket-name }} --delete 
+
+      - name: Invalidate CloudFront cache
+        if: inputs.cloudfront-origin-name
+        run: |
+          aws cloudfront create-invalidation --distribution-id "${{ steps.cloudfront.outputs.id }}" --paths "/*"
+
+
+
+on:
+  workflow_call:
+    inputs:
+      environment:
+        description: "Environment name (master, prod, dev, security, etc...)"
+        type: string
+        required: true
+
+      role-name:
+        description: "AWS role name to assume for the terraform state initialization"
+        type: string
+        required: false
+        default: "github"
+
+      s3-bucket-name:
+        description: "S3 bucket name to deploy the website content to"
+        type: string
+        required: true
+
+      cloudfront-origin-name:
+        description: "Cloudfront origin name to invalidate cache for"
+        type: string
+        required: false
+
+      website-content:
+        description: "Website content to deploy to S3"
+        type: string
+        default: "build"
+        required: false
+
+
