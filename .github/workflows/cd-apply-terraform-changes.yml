@@ -103,6 +103,7 @@ jobs:
           auto_approve: true
 
       - name: Retry failed apply
+        id: second_try
         uses: dflook/terraform-apply@v1
         env:
           # erase github token to prevent it to being explicitly used in tf plan github provider
@@ -115,6 +116,10 @@ jobs:
           var_file: ${{ steps.tf.outputs.vars-file }}
           variables: ${{ inputs.additional-variables }}
           auto_approve: true
+
+      - name: Verify that apply failed and retry didn't help
+        if: steps.first_try.outcome != 'success' && steps.first_try.outputs.failure-reason != 'apply-failed'
+        run: exit 1
 
 on:
   workflow_call:
