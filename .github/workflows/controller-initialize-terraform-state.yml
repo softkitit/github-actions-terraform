@@ -130,7 +130,7 @@ jobs:
 
       - name: Generate additional vars file
         if: ${{ steps.tf.outputs.files-exist == 'false'}}
-        run: echo "${{ inputs.additional-variables }}' > $RUNNER_TEMP/softkit-additional-variables.tfvars
+        run: echo "${{ inputs.additional-variables }}" > $RUNNER_TEMP/softkit-additional-variables.tfvars
 
 
       - name: Terraform Init
