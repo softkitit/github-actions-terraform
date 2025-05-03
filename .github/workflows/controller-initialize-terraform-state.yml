@@ -58,6 +58,7 @@ env:
   DYNAMODB_TABLE_NAME: ${{ inputs.dynamo-db-table-name || format('{0}-{1}-{2}', inputs.environment, inputs.organization, inputs.project-name || inputs.repository-name) }}
   S3_BUCKET_NAME: ${{ inputs.s3-bucket-name || format('{0}-{1}-{2}', inputs.environment, inputs.organization, inputs.project-name || inputs.repository-name) }}
 
+
 jobs:
   init_state:
     name: Perform terraform state initialization
@@ -127,10 +128,15 @@ jobs:
           echo "dynamo_db_table_name = \"${DYNAMODB_TABLE_NAME}\"" >> ${{ steps.tf.outputs.vars-file }}
           echo "s3_bucket_name = \"${S3_BUCKET_NAME}\"" >> ${{ steps.tf.outputs.vars-file }}
 
+      - name: Generate additional vars file
+        if: ${{ steps.tf.outputs.files-exist == 'false'}}
+        run: echo "${{ inputs.additional-variables }}' > $RUNNER_TEMP/softkit-additional-variables.tfvars
+
+
       - name: Terraform Init
         if: ${{ steps.tf.outputs.files-exist == 'false' }}
         working-directory: ${{ steps.tf.outputs.root }}
-        run: terraform init -var-file="${{ steps.tf.outputs.vars-file-relative-path }}" -no-color -target="module.${{ inputs.tf-state-module-name }}" -target="module.${{ inputs.oidc-module-name }}"
+        run: terraform init -var-file="$RUNNER_TEMP/softkit-additional-variables.tfvars" -var-file="${{ steps.tf.outputs.vars-file-relative-path }}" -no-color -target="module.${{ inputs.tf-state-module-name }}" -target="module.${{ inputs.oidc-module-name }}"
 
       - name: Terraform Plan
         if: ${{ steps.tf.outputs.files-exist == 'false' }}
@@ -138,7 +144,7 @@ jobs:
         env:
           GITHUB_TOKEN: ''
         id: plan
-        run: terraform plan -var-file="${{ steps.tf.outputs.vars-file-relative-path }}" -no-color -target="module.${{ inputs.tf-state-module-name }}" -target="module.${{ inputs.oidc-module-name }}"
+        run: terraform plan -var-file="$RUNNER_TEMP/softkit-additional-variables.tfvars" -var-file="${{ steps.tf.outputs.vars-file-relative-path }}" -no-color -target="module.${{ inputs.tf-state-module-name }}" -target="module.${{ inputs.oidc-module-name }}"
 
       - name: Terraform Apply
         if: ${{ steps.tf.outputs.files-exist == 'false' }}
@@ -146,7 +152,7 @@ jobs:
         env:
           GITHUB_TOKEN: ''
         id: apply
-        run: terraform apply -auto-approve -var-file="${{ steps.tf.outputs.vars-file-relative-path }}" -no-color -target="module.${{ inputs.tf-state-module-name }}" -target="module.${{ inputs.oidc-module-name }}"
+        run: terraform apply -var-file="$RUNNER_TEMP/softkit-additional-variables.tfvars" -auto-approve -var-file="${{ steps.tf.outputs.vars-file-relative-path }}" -no-color -target="module.${{ inputs.tf-state-module-name }}" -target="module.${{ inputs.oidc-module-name }}"
 
       - name: Generate backend HCL file
         if: ${{ steps.tf.outputs.files-exist == 'false' }}
@@ -158,13 +164,14 @@ jobs:
           echo 'encrypt        = "true"' >> ${{ steps.tf.outputs.backend-file }}
           echo "dynamodb_table = \"${DYNAMODB_TABLE_NAME}\"" >> ${{ steps.tf.outputs.backend-file }}
 
+
       - name: Copy local state to the remote
         id: force-copy
         if: ${{ steps.tf.outputs.files-exist == 'false' }}
         working-directory: ${{ steps.tf.outputs.root }}
         run: |
           git restore ${{ inputs.mock-backend-file-name }}
-          terraform init -force-copy -var-file="${{ steps.tf.outputs.vars-file-relative-path }}"  -backend-config="${{ steps.tf.outputs.backend-file-relative-path }}" -no-color
+          terraform init -force-copy -var-file="$RUNNER_TEMP/softkit-additional-variables.tfvars" -var-file="$RUNNER_TEMP/softkit-additional-variables.tfvars" -var-file="${{ steps.tf.outputs.vars-file-relative-path }}"  -backend-config="${{ steps.tf.outputs.backend-file-relative-path }}" -no-color
 
       - uses: stefanzweifel/git-auto-commit-action@v5
         if: ${{ steps.tf.outputs.files-exist == 'false' }}
@@ -206,8 +213,8 @@ jobs:
 
         run: |
           rm ${{ inputs.mock-backend-file-name }} || true
-          terraform init -force-copy
-          terraform apply -destroy -auto-approve -no-color -target="module.${{ inputs.tf-state-module-name }}" -target="module.${{ inputs.oidc-module-name }}" 
+          terraform init -force-copy -var-file="$RUNNER_TEMP/softkit-additional-variables.tfvars"
+          terraform apply -destroy -var-file="$RUNNER_TEMP/softkit-additional-variables.tfvars" -auto-approve -no-color -target="module.${{ inputs.tf-state-module-name }}" -target="module.${{ inputs.oidc-module-name }}" 
           exit 1
 
 on:
@@ -309,3 +316,8 @@ on:
         required: false
         default: false
 
+      additional-variables:
+        description: "Additional variables to pass to the terraform init command"
+        type: string
+        default: ''
+        required: false

@@ -88,11 +88,24 @@ jobs:
 
       - name: Deploy to Amazon ECS service
         uses: aws-actions/amazon-ecs-deploy-task-definition@v2
+        id: ecs-deploy
         with:
           task-definition: ${{ steps.render-app-container.outputs.task-definition }}
           service: ${{ inputs.ecs-service-name }}
           cluster: ${{ inputs.ecs-cluster-name }}
           wait-for-service-stability: ${{ inputs.wait-for-service-stability }}
+
+      - name: Check if deployment was successful
+        id: check-deployment
+        run: |
+          CURRENT_TASK_DEF_ARN=$(aws ecs describe-services --cluster ${{ inputs.ecs-cluster-name }} --services ${{ inputs.ecs-service-name }} --query services[0].deployments[0].taskDefinition | jq -r ".")
+          NEW_TASK_DEF_ARN=${{ steps.ecs-deploy.outputs.task-definition-arn }}
+          echo "Current task arn: $CURRENT_TASK_DEF_ARN"
+          echo "New task arn: $NEW_TASK_DEF_ARN"
+          if [ "$CURRENT_TASK_DEF_ARN" != "$NEW_TASK_DEF_ARN" ]; then
+            echo "Deployment failed, seems like the old version is still runing, login to ecs and check logs"
+            exit 1
+          fi
 
 
 on:
