@@ -99,7 +99,7 @@ jobs:
           path: ${{ steps.tf.outputs.root }}
           backend_config_file: ${{ steps.tf.outputs.backend-file }}
           var_file: ${{ steps.tf.outputs.vars-file }}
-          variables: ${{ inputs.additionalVariables }}
+          variables: ${{ inputs.additional-variables }}
           auto_approve: true
 
       - name: Retry failed apply
