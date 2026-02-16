@@ -99,7 +99,7 @@ jobs:
         id: build-publish
         if: steps.verify-image-exists.outputs.exists == 'false'
         run: |
-          docker build -f ${{ inputs.docker-file-path }} -t "${{ steps.image-info.outputs.full-image }}" .
+          docker build --provenance=${{ inputs.docker-provenance }} -f ${{ inputs.docker-file-path }} -t "${{ steps.image-info.outputs.full-image }}" .
           docker push "${{ steps.image-info.outputs.full-image }}"
           echo "Image tag - ${{ steps.image-info.outputs.image-tag }} is pushed to ${{ steps.image-info.outputs.full-image }}"
 
@@ -150,3 +150,10 @@ on:
         description: "Additional artifact to be downloaded for building a docker image"
         type: string
         required: false
+
+      docker-provenance:
+        description: "Enable docker provenance attestations"
+        type: boolean
+        required: false
+        default: true
+
